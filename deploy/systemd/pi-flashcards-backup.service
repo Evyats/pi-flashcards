@@ -1,0 +1,16 @@
+[Unit]
+Description=Back up the Pi Flashcards SQLite database
+
+[Service]
+Type=oneshot
+User=pi-flashcards
+Group=pi-flashcards
+ExecStart=/bin/bash /opt/pi-flashcards/app/deploy/backup/backup.sh
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/pi-flashcards
+ReadOnlyPaths=/var/lib/pi-flashcards
+

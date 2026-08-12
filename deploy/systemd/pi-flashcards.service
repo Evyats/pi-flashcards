@@ -1,0 +1,23 @@
+[Unit]
+Description=Pi Flashcards FastAPI service
+After=network.target
+
+[Service]
+Type=simple
+User=pi-flashcards
+Group=pi-flashcards
+WorkingDirectory=/opt/pi-flashcards/app/backend
+Environment=FLASHCARDS_DATABASE_PATH=/var/lib/pi-flashcards/flashcards.db
+ExecStart=/opt/pi-flashcards/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/pi-flashcards
+
+[Install]
+WantedBy=multi-user.target
+
