@@ -5,9 +5,9 @@ export default defineConfig({
   base: '/flashcards/',
   plugins: [react()],
   server: {
+    host: '0.0.0.0',
     proxy: {
       '/flashcards/api': 'http://127.0.0.1:8001',
     },
   },
 })
-
