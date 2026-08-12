@@ -2,19 +2,19 @@
 
 A small personal flashcards app for the Raspberry Pi home server.
 
-## Run locally
+## First local run
 
-Backend:
+Backend terminal:
 
 ```powershell
 cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-Frontend, in another terminal:
+Frontend terminal:
 
 ```powershell
 cd frontend
@@ -22,8 +22,30 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:5173/flashcards/>. The local database is created at
-`backend/data/flashcards.db` and is excluded from Git.
+## Later local runs
+
+Backend terminal:
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+```
+
+Frontend terminal:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Open <http://localhost:5173/flashcards/> on the computer. On a phone connected
+to the same Wi-Fi, open `http://<computer-ip>:5173/flashcards/`. Find the
+computer IP with `ipconfig` and allow Node/Python through Windows Firewall on
+private networks if prompted.
+
+The local database is created at `backend/data/flashcards.db` and is excluded
+from Git.
 
 ## Deploy
 
