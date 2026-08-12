@@ -25,3 +25,11 @@ npm run dev
 Open <http://localhost:5173/flashcards/>. The local database is created at
 `backend/data/flashcards.db` and is excluded from Git.
 
+## Deploy
+
+Push changes to `main`, then check [GitHub Actions](https://github.com/Evyats/pi-flashcards/actions).
+Wait for **Build deploy branch** to turn green, then run on the Pi:
+
+```bash
+sudo /opt/pi-flashcards/app/deploy.sh
+```
