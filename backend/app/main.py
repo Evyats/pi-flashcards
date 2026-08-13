@@ -122,6 +122,34 @@ def create_card(payload: CardFields) -> Card:
     return fetch_card(card_id)
 
 
+@app.post(f"{API_PREFIX}/cards/bulk", response_model=list[Card], status_code=status.HTTP_201_CREATED)
+def create_cards_bulk(payload: list[CardFields]) -> list[Card]:
+    if not payload:
+        raise HTTPException(status_code=400, detail="At least one card is required")
+    if len(payload) > 200:
+        raise HTTPException(status_code=400, detail="A bulk import can contain at most 200 cards")
+    group_ids = {card.group_id for card in payload}
+    if len(group_ids) != 1:
+        raise HTTPException(status_code=400, detail="All imported cards must belong to one group")
+    group_id = next(iter(group_ids))
+    with get_connection() as connection:
+        if connection.execute("SELECT 1 FROM card_groups WHERE id = ?", (group_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Group not found")
+        card_ids = []
+        for card in payload:
+            cursor = connection.execute(
+                "INSERT INTO cards (front, back, group_id) VALUES (?, ?, ?)",
+                (card.front, card.back, group_id),
+            )
+            card_ids.append(cursor.lastrowid)
+        placeholders = ",".join("?" for _ in card_ids)
+        rows = connection.execute(
+            f"SELECT id, front, back, group_id, created_at FROM cards WHERE id IN ({placeholders}) ORDER BY id DESC",
+            card_ids,
+        ).fetchall()
+    return [Card(**dict(row)) for row in rows]
+
+
 @app.put(f"{API_PREFIX}/cards/{{card_id}}", response_model=Card)
 def update_card(card_id: int, payload: CardFields) -> Card:
     with get_connection() as connection:
