@@ -7,7 +7,7 @@ A small personal flashcards app for the Raspberry Pi home server.
 Backend terminal:
 
 ```powershell
-cd backend
+cd pi-flashcards\backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -17,7 +17,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 Frontend terminal:
 
 ```powershell
-cd frontend
+cd pi-flashcards\frontend
 npm install
 npm run dev
 ```
@@ -27,7 +27,7 @@ npm run dev
 Backend terminal:
 
 ```powershell
-cd backend
+cd pi-flashcards\backend
 .\.venv\Scripts\Activate.ps1
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
@@ -35,7 +35,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 Frontend terminal:
 
 ```powershell
-cd frontend
+cd pi-flashcards\frontend
 npm run dev
 ```
 
