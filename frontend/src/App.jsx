@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 const API = '/flashcards/api'
 const EMPTY_CARD = { front: '', back: '' }
+const BULK_PROMPT = 'Create flashcards as valid JSON only. Return an array where every item has exactly two string fields: "front" and "back". Example: [{"front":"Hello","back":"שלום"}]. Do not use Markdown or add any explanation.'
 const DECK_COLORS = ['#ffffff', '#f2c7cf', '#f1c5ad', '#efd69a', '#cde3ad', '#bde0d7', '#acdfe9', '#bfd5f5', '#d6c4eb']
 const DARK_DECK_COLORS = {
   '#ffffff': '#343b47',
@@ -96,6 +97,59 @@ function CardForm({ initial = EMPTY_CARD, submitLabel, onSubmit, onCancel }) {
   )
 }
 
+function BulkCardForm({ onSubmit, onCancel }) {
+  const [value, setValue] = useState('')
+  const [message, setMessage] = useState('')
+
+  function submit(event) {
+    event.preventDefault()
+    try {
+      const cards = JSON.parse(value)
+      if (!Array.isArray(cards) || cards.length === 0) throw new Error('Enter a non-empty JSON array.')
+      if (cards.length > 200) throw new Error('Import at most 200 cards at once.')
+      const normalized = cards.map((card, index) => {
+        if (!card || typeof card !== 'object' || Array.isArray(card) || typeof card.front !== 'string' || typeof card.back !== 'string' || !card.front.trim() || !card.back.trim()) {
+          throw new Error(`Card ${index + 1} must contain non-empty front and back strings.`)
+        }
+        return { front: card.front.trim(), back: card.back.trim() }
+      })
+      setMessage('')
+      onSubmit(normalized)
+    } catch (error) {
+      setMessage(error instanceof SyntaxError ? 'The JSON is not valid.' : error.message)
+    }
+  }
+
+  async function copyPrompt() {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(BULK_PROMPT)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = BULK_PROMPT
+        textarea.readOnly = true
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.appendChild(textarea)
+        textarea.select()
+        const copied = document.execCommand('copy')
+        textarea.remove()
+        if (!copied) throw new Error('Copy failed')
+      }
+      setMessage('Prompt copied.')
+    } catch {
+      setMessage('Could not access the clipboard.')
+    }
+  }
+
+  return <form className="bulk-card-form" onSubmit={submit}>
+    <div className="bulk-form-heading"><div><h3>Import cards</h3><p>Paste a JSON array of front/back pairs.</p></div><button type="button" className="copy-prompt" onClick={copyPrompt}>Copy GPT prompt</button></div>
+    <textarea autoFocus spellCheck="false" value={value} onChange={(event) => setValue(event.target.value)} placeholder={'[{"front":"Hello","back":"שלום"}]'} />
+    {message && <p className="bulk-message" role="status">{message}</p>}
+    <div className="form-actions"><button type="button" className="quiet-button" onClick={onCancel}>Cancel</button><button disabled={!value.trim()}>Add cards</button></div>
+  </form>
+}
+
 function StudyView({ cards, groupName, mode, onClose }) {
   const [session] = useState(() => shuffled(cards))
   const [index, setIndex] = useState(0)
@@ -181,6 +235,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pi-flashcards-theme') === 'dark')
   const [editingId, setEditingId] = useState(null)
   const [adding, setAdding] = useState(false)
+  const [addingBulk, setAddingBulk] = useState(false)
   const [studyMode, setStudyMode] = useState('front')
   const [studying, setStudying] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -229,6 +284,7 @@ export default function App() {
     setSelectedGroupId(null)
     setEditingGroupId(null)
     setAdding(false)
+    setAddingBulk(false)
     setEditingId(null)
   }
 
@@ -330,6 +386,16 @@ export default function App() {
     } catch (err) { setError(err.message) }
   }
 
+  async function createCardsBulk(fields) {
+    try {
+      const created = await request(`${API}/cards/bulk`, jsonOptions('POST', fields.map((card) => ({ ...card, group_id: effectiveGroupId }))))
+      setCards((current) => [...created, ...current])
+      setGroups((current) => current.map((group) => group.id === effectiveGroupId ? { ...group, card_count: group.card_count + created.length } : group))
+      setAddingBulk(false)
+      setError('')
+    } catch (err) { setError(err.message) }
+  }
+
   async function updateCard(id, fields) {
     try {
       const card = await request(`${API}/cards/${id}`, jsonOptions('PUT', { ...fields, group_id: effectiveGroupId }))
@@ -362,14 +428,14 @@ export default function App() {
         <nav className="tab-bar" aria-label="Workspaces">{tabs.map((tab) => <div className={`tab-item ${tab.id === selectedTabId ? 'active' : ''}`} key={tab.id}>{editingTabId === tab.id ? <input className="tab-name-input" autoFocus defaultValue={tab.name} maxLength="100" aria-label="Workspace name" onFocus={(event) => event.target.select()} onBlur={(event) => renameTab(tab, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setEditingTabId(null) }} /> : <button className="tab-select" onClick={() => selectTab(tab.id)} onDoubleClick={() => editingStructure && setEditingTabId(tab.id)}><span>{tab.name}</span></button>}{editingStructure && <button className="tab-delete" aria-label={`Delete ${tab.name}`} onClick={() => deleteTab(tab)}><TrashIcon /></button>}</div>)}{editingStructure && <button className="tab-add" aria-label="New workspace" onClick={createTab}><PlusIcon /></button>}</nav>
         <section className="workspace-content">
           {tabGroups.length === 0 && !editingStructure ? <section className="empty"><h3>This workspace is empty</h3><p>Enter edit mode to create a deck.</p></section> : <>
-            <nav className="deck-grid" aria-label="Card decks">{tabGroups.map((group, index) => <div key={group.id} style={{ '--deck-index': index, '--deck-color': group.color, '--deck-dark-color': DARK_DECK_COLORS[group.color] ?? DARK_DECK_COLORS['#ffffff'] }} className={`deck-tile ${group.id === selectedGroupId ? 'active' : ''} ${editingGroupId === group.id ? 'deck-editing' : ''}`}>{editingGroupId === group.id ? <input autoFocus defaultValue={group.name} maxLength="100" aria-label="Deck name" onFocus={(event) => event.target.select()} onBlur={(event) => renameGroup(group, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setEditingGroupId(null) }} /> : <button className="deck-select" onClick={() => { setSelectedGroupId((current) => current === group.id ? null : group.id); setAdding(false); setEditingId(null) }} onDoubleClick={() => editingStructure && setEditingGroupId(group.id)}><span className="deck-name">{group.name}</span><small>{group.card_count} {group.card_count === 1 ? 'card' : 'cards'}</small></button>}{editingStructure && <><button className="deck-delete" aria-label={`Delete ${group.name}`} onClick={() => deleteGroup(group)}><TrashIcon /></button><button className="deck-color-button" aria-label={`Change ${group.name} color`} title="Deck color" onClick={() => setColorGroupId((current) => current === group.id ? null : group.id)}><span style={{ background: group.color }} /></button>{colorGroupId === group.id && <div className="deck-palette" role="group" aria-label={`Choose ${group.name} color`}><strong>Deck color</strong>{DECK_COLORS.map((color) => <button key={color} aria-label={`Use ${color}`} className={group.color === color ? 'active' : ''} style={{ background: color }} onClick={() => changeGroupColor(group, color)} />)}</div>}</>}</div>)}{editingStructure && <button className="deck-add" aria-label="Create deck" onClick={createGroup}><PlusIcon /></button>}</nav>
+            <nav className="deck-grid" aria-label="Card decks">{tabGroups.map((group, index) => <div key={group.id} style={{ '--deck-index': index, '--deck-color': group.color, '--deck-dark-color': DARK_DECK_COLORS[group.color] ?? DARK_DECK_COLORS['#ffffff'] }} className={`deck-tile ${group.id === selectedGroupId ? 'active' : ''} ${editingGroupId === group.id ? 'deck-editing' : ''}`}>{editingGroupId === group.id ? <input autoFocus defaultValue={group.name} maxLength="100" aria-label="Deck name" onFocus={(event) => event.target.select()} onBlur={(event) => renameGroup(group, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setEditingGroupId(null) }} /> : <button className="deck-select" onClick={() => { setSelectedGroupId((current) => current === group.id ? null : group.id); setAdding(false); setAddingBulk(false); setEditingId(null) }} onDoubleClick={() => editingStructure && setEditingGroupId(group.id)}><span className="deck-name">{group.name}</span><small>{group.card_count} {group.card_count === 1 ? 'card' : 'cards'}</small></button>}{editingStructure && <><button className="deck-delete" aria-label={`Delete ${group.name}`} onClick={() => deleteGroup(group)}><TrashIcon /></button><button className="deck-color-button" aria-label={`Change ${group.name} color`} title="Deck color" onClick={() => setColorGroupId((current) => current === group.id ? null : group.id)}><span style={{ background: group.color }} /></button>{colorGroupId === group.id && <div className="deck-palette" role="group" aria-label={`Choose ${group.name} color`}><strong>Deck color</strong>{DECK_COLORS.map((color) => <button key={color} aria-label={`Use ${color}`} className={group.color === color ? 'active' : ''} style={{ background: color }} onClick={() => changeGroupColor(group, color)} />)}</div>}</>}</div>)}{editingStructure && <button className="deck-add" aria-label="Create deck" onClick={createGroup}><PlusIcon /></button>}</nav>
 
             {tabGroups.length > 0 && <section className="active-deck">
               <div className="study-launcher">
                 <div className="mode-picker"><div className="mode-chips"><button type="button" className={studyMode === 'front' ? 'active' : ''} aria-pressed={studyMode === 'front'} onClick={() => setStudyMode('front')}>Front → Back</button><button type="button" className={studyMode === 'alternating' ? 'active' : ''} aria-pressed={studyMode === 'alternating'} onClick={() => setStudyMode('alternating')}>Alternate ↔</button></div></div>
                 <button disabled={!studyCards.length} onClick={() => setStudying(true)}>{selectedGroup ? 'Start study' : 'Study all decks'} <ArrowIcon /></button>
               </div>
-              {selectedGroup && <>{adding ? <CardForm submitLabel="Add card" onSubmit={createCard} onCancel={() => setAdding(false)} /> : <button className="add-card" onClick={() => setAdding(true)}><PlusIcon /> Add card</button>}
+              {selectedGroup && <>{adding ? <CardForm submitLabel="Add card" onSubmit={createCard} onCancel={() => setAdding(false)} /> : addingBulk ? <BulkCardForm onSubmit={createCardsBulk} onCancel={() => setAddingBulk(false)} /> : <div className="add-card-actions"><button className="add-card" onClick={() => setAdding(true)}><PlusIcon /> Add card</button><button className="add-card" onClick={() => setAddingBulk(true)}><PlusIcon /> Add cards from JSON</button></div>}
               {groupCards.length === 0 ? <p className="empty deck-empty">No cards in this deck yet.</p> : <ul className="card-list">{groupCards.map((card, index) => <li key={card.id} className="card-row">{editingId === card.id ? <CardForm initial={card} submitLabel="Save" onSubmit={(fields) => updateCard(card.id, fields)} onCancel={() => setEditingId(null)} /> : <><span className="card-number">{String(groupCards.length - index).padStart(2, '0')}</span><button className="card-copy" onClick={() => setEditingId(card.id)}><strong>{card.front}</strong><span>{card.back}</span></button><button className="icon-danger card-delete" aria-label="Delete card" onClick={() => deleteCard(card.id)}><TrashIcon /></button></>}</li>)}</ul>}</>}
             </section>}
           </>}
