@@ -29,7 +29,7 @@
 ::view-transition-new(root) { animation-name: theme-fade-in; }
 html { -webkit-tap-highlight-color: transparent; }
 html, body, #root { min-width: 320px; min-height: 100%; }
-body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 52% -20%, color-mix(in srgb,var(--accent) 5%,var(--page-bg)),var(--page-bg) 52%); }
+body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 52% -20%, color-mix(in srgb,var(--accent) 5%,var(--page-bg)),var(--page-bg) 52%) fixed; background-size: 100vw 100vh; }
 button, textarea, input, select { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb,var(--accent) 30%,transparent); outline-offset: 2px; }
@@ -98,17 +98,26 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .deck-editing { display: grid; align-content: space-between; padding: 15px; }
 .deck-editing input { width: calc(100% - 24px); padding: 4px 0; border: 0; border-bottom: 2px solid currentColor; border-radius: 0; color: inherit; background: transparent; font-size: 17px; font-weight: 760; }
 .deck-editing input:focus-visible { outline: 0; }
-.deck-delete { position: absolute; z-index: 2; top: 5px; right: 5px; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: var(--radius); color: currentColor; background: color-mix(in srgb,var(--surface) 18%,transparent); opacity: .75; }
+.deck-delete { position: absolute; z-index: 2; top: 5px; right: 5px; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: var(--radius); color: #b62f43; background: color-mix(in srgb,#d54457 18%,var(--surface)); opacity: 1; }
 .deck-delete svg { width: 14px; height: 14px; }
 .deck-order { position: absolute; z-index: 3; right: 38px; bottom: 5px; display: flex; }
 .deck-order button { display: grid; width: 25px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: var(--radius); color: currentColor; background: color-mix(in srgb,var(--ink) 7%,transparent); }
 .deck-order button svg { width: 15px; height: 15px; }
 .deck-color-button { position: absolute; z-index: 3; right: 5px; bottom: 5px; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: var(--radius); background: color-mix(in srgb,var(--ink) 7%,transparent); }
-.deck-color-button span { width: 17px; height: 17px; border: 1px solid color-mix(in srgb,var(--ink) 20%,transparent); border-radius: 50%; }
+.deck-color-button span { width: 18px; height: 18px; border: 1px solid color-mix(in srgb,var(--ink) 18%,transparent); border-radius: 50%; background: conic-gradient(#ef5b68,#f2b84b,#72bd76,#52bcca,#6687eb,#b26bd4,#ef5b68) !important; box-shadow: inset 0 0 0 2px color-mix(in srgb,var(--surface) 70%,transparent); }
 .deck-palette { position: absolute; z-index: 5; right: 4px; bottom: 38px; display: grid; grid-template-columns: repeat(3,20px); gap: 7px; padding: 8px; border: 1px solid color-mix(in srgb,var(--ink) 16%,transparent); border-radius: var(--radius); background: var(--surface); }
 .deck-palette strong { grid-column: 1 / -1; color: var(--muted); font-size: 10px; letter-spacing: .04em; white-space: nowrap; }
 .deck-palette button { width: 20px; height: 20px; padding: 0; border: 1px solid color-mix(in srgb,var(--ink) 18%,transparent); border-radius: 50%; }
 .deck-palette button.active { outline: 2px solid var(--accent); outline-offset: 1px; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(1) { background: #343b47 !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(2) { background: #633743 !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(3) { background: #6a402d !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(4) { background: #625126 !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(5) { background: #40582f !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(6) { background: #2d5951 !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(7) { background: #276071 !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(8) { background: #314f7c !important; }
+:root[data-theme="dark"] .deck-palette button:nth-of-type(9) { background: #4f3b6d !important; }
 .deck-add { display: grid; min-height: 90px; place-items: center; border: 2px dashed color-mix(in srgb,var(--accent) 35%,transparent); border-radius: var(--radius); color: var(--accent); background: transparent; }
 .deck-add svg { width: 28px; height: 28px; }
 .deck-tile small { color: inherit; font-size: 11px; opacity: .7; }
@@ -132,7 +141,7 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .card-filter-options small { margin-left: 3px; font-size: 9px; opacity: .68; }
 .card-list-region { min-height: 0; }
 .add-card:hover { opacity: .72; }
-.add-card-actions { display: flex; margin-left: auto; gap: 6px; }
+.add-card-actions { display: flex; margin-left: auto; flex-direction: row-reverse; gap: 6px; }
 .creation-form,.card-form { display: grid; gap: 16px; padding: 18px; border-radius: var(--radius); background: color-mix(in srgb,var(--surface) 68%,transparent); }
 .creation-form label { display: grid; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 720; }
 .card-form h3 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
@@ -155,6 +164,7 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 
 .card-list { margin: 0; padding: 0; list-style: none; }
 .card-row { display: grid; grid-template-columns: 38px minmax(0,1fr) 38px; min-height: var(--row-height); align-items: center; border-bottom: 1px solid color-mix(in srgb,var(--ink) 9%,transparent); }
+.card-row:not(:has(.card-delete)):not(:has(.card-form)) { grid-template-columns: 38px minmax(0,1fr); }
 .card-row:last-child { border-bottom: 0; }
 .card-row > .card-form { grid-column: 1 / -1; width: 100%; }
 .card-number { color: color-mix(in srgb,var(--muted) 72%,transparent); font: 650 10px ui-monospace,SFMono-Regular,Consolas,monospace; }
@@ -162,8 +172,7 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .card-copy strong,.card-copy span { overflow-wrap: anywhere; }
 .card-copy strong { font-size: 14px; }
 .card-copy span { color: var(--muted); font-size: 13px; }
-.card-delete { opacity: 0; }
-.card-row:hover .card-delete,.card-delete:focus-visible { opacity: 1; }
+.card-delete { opacity: 1; }
 
 .empty { margin: 42px auto; color: var(--muted); text-align: center; }
 .empty h2,.empty h3 { margin: 0 0 7px; color: var(--ink); }
