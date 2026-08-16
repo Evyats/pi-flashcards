@@ -47,6 +47,21 @@ private networks if prompted.
 The local database is created at `backend/data/flashcards.db` and is excluded
 from Git.
 
+Run the backend tests from the workspace root with:
+
+```powershell
+cd pi-flashcards\backend
+pip install -r requirements-dev.txt
+python -m unittest discover -s tests -v
+```
+
+Run the frontend state tests with:
+
+```powershell
+cd pi-flashcards\frontend
+npm test
+```
+
 ## Deploy
 
 Push changes to `main`, then check [GitHub Actions](https://github.com/Evyats/pi-flashcards/actions).
