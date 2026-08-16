@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI, HTTPException, Response, status
 from pydantic import BaseModel, field_validator
@@ -28,6 +29,7 @@ class Tab(NamedFields):
     sort_order: int
     created_at: str
     group_count: int = 0
+    card_count: int = 0
 
 
 class GroupFields(NamedFields):
@@ -69,6 +71,13 @@ class CardFields(BaseModel):
 class Card(CardFields):
     id: int
     created_at: str
+    memory_level: int
+    next_review_at: str | None = None
+    is_known: bool
+
+
+class CardReview(BaseModel):
+    known: bool
 
 
 class TabOrder(BaseModel):
@@ -88,11 +97,18 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Flashcards API", version="1.0.0", lifespan=lifespan)
 
+CARD_SELECT = """
+    SELECT id, front, back, group_id, created_at, memory_level, next_review_at,
+           CASE WHEN next_review_at IS NOT NULL AND datetime(next_review_at) > CURRENT_TIMESTAMP
+                THEN 1 ELSE 0 END AS is_known
+    FROM cards
+"""
+
 
 def fetch_card(card_id: int) -> Card:
     with get_connection() as connection:
         row = connection.execute(
-            "SELECT id, front, back, group_id, created_at FROM cards WHERE id = ?",
+            CARD_SELECT + " WHERE id = ?",
             (card_id,),
         ).fetchone()
     if row is None:
@@ -110,11 +126,11 @@ def list_cards(group_id: int | None = None) -> list[Card]:
     with get_connection() as connection:
         if group_id is None:
             rows = connection.execute(
-                "SELECT id, front, back, group_id, created_at FROM cards ORDER BY id DESC"
+                CARD_SELECT + " ORDER BY id DESC"
             ).fetchall()
         else:
             rows = connection.execute(
-                "SELECT id, front, back, group_id, created_at FROM cards WHERE group_id = ? ORDER BY id DESC",
+                CARD_SELECT + " WHERE group_id = ? ORDER BY id DESC",
                 (group_id,),
             ).fetchall()
     return [Card(**dict(row)) for row in rows]
@@ -155,7 +171,7 @@ def create_cards_bulk(payload: list[CardFields]) -> list[Card]:
             card_ids.append(cursor.lastrowid)
         placeholders = ",".join("?" for _ in card_ids)
         rows = connection.execute(
-            f"SELECT id, front, back, group_id, created_at FROM cards WHERE id IN ({placeholders}) ORDER BY id DESC",
+            CARD_SELECT + f" WHERE id IN ({placeholders}) ORDER BY id DESC",
             card_ids,
         ).fetchall()
     return [Card(**dict(row)) for row in rows]
@@ -170,6 +186,30 @@ def update_card(card_id: int, payload: CardFields) -> Card:
         )
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Card not found")
+    return fetch_card(card_id)
+
+
+@app.post(f"{API_PREFIX}/cards/{{card_id}}/review", response_model=Card)
+def review_card(card_id: int, payload: CardReview) -> Card:
+    intervals = {1: 1, 2: 3, 3: 7, 4: 14, 5: 30}
+    with get_connection() as connection:
+        row = connection.execute(
+            "SELECT memory_level FROM cards WHERE id = ?", (card_id,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Card not found")
+        if payload.known:
+            level = min(row["memory_level"] + 1, 5)
+            next_review = datetime.now(timezone.utc) + timedelta(days=intervals[level])
+            connection.execute(
+                "UPDATE cards SET memory_level = ?, next_review_at = ? WHERE id = ?",
+                (level, next_review.isoformat(), card_id),
+            )
+        else:
+            connection.execute(
+                "UPDATE cards SET memory_level = 0, next_review_at = NULL WHERE id = ?",
+                (card_id,),
+            )
     return fetch_card(card_id)
 
 
@@ -278,10 +318,10 @@ def list_tabs() -> list[Tab]:
         rows = connection.execute(
             """
             SELECT tabs.id, tabs.name, tabs.sort_order, tabs.created_at,
-                   COUNT(card_groups.id) AS group_count
+                   (SELECT COUNT(*) FROM card_groups WHERE card_groups.tab_id = tabs.id) AS group_count,
+                   (SELECT COUNT(*) FROM cards JOIN card_groups ON cards.group_id = card_groups.id
+                    WHERE card_groups.tab_id = tabs.id) AS card_count
             FROM tabs
-            LEFT JOIN card_groups ON card_groups.tab_id = tabs.id
-            GROUP BY tabs.id
             ORDER BY tabs.sort_order ASC, tabs.id ASC
             """
         ).fetchall()
@@ -296,7 +336,7 @@ def create_tab(payload: NamedFields) -> Tab:
             (payload.name,),
         )
         row = connection.execute(
-            "SELECT id, name, sort_order, created_at, 0 AS group_count FROM tabs WHERE id = ?",
+            "SELECT id, name, sort_order, created_at, 0 AS group_count, 0 AS card_count FROM tabs WHERE id = ?",
             (cursor.lastrowid,),
         ).fetchone()
     return Tab(**dict(row))
@@ -310,9 +350,10 @@ def update_tab(tab_id: int, payload: NamedFields) -> Tab:
             raise HTTPException(status_code=404, detail="Tab not found")
         row = connection.execute(
             """SELECT tabs.id, tabs.name, tabs.sort_order, tabs.created_at,
-                      COUNT(card_groups.id) AS group_count
-               FROM tabs LEFT JOIN card_groups ON card_groups.tab_id = tabs.id
-               WHERE tabs.id = ? GROUP BY tabs.id""",
+                      (SELECT COUNT(*) FROM card_groups WHERE card_groups.tab_id = tabs.id) AS group_count,
+                      (SELECT COUNT(*) FROM cards JOIN card_groups ON cards.group_id = card_groups.id
+                       WHERE card_groups.tab_id = tabs.id) AS card_count
+               FROM tabs WHERE tabs.id = ?""",
             (tab_id,),
         ).fetchone()
     return Tab(**dict(row))
