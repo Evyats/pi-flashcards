@@ -54,6 +54,10 @@ function PlusIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
 }
 
+function ChevronIcon({ direction }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><path d={direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 6 6 6-6 6'} /></svg>
+}
+
 function TrashIcon() {
   return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" /></svg>
 }
@@ -329,6 +333,24 @@ export default function App() {
     } catch (err) { setError(err.message) }
   }
 
+  async function moveTab(tabId, direction) {
+    const oldTabs = tabs
+    const index = oldTabs.findIndex((tab) => tab.id === tabId)
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= oldTabs.length) return
+    const reordered = [...oldTabs]
+    const [moved] = reordered.splice(index, 1)
+    reordered.splice(target, 0, moved)
+    setTabs(reordered)
+    try {
+      await request(`${API}/tabs-order`, jsonOptions('PUT', { tab_ids: reordered.map((tab) => tab.id) }))
+      setError('')
+    } catch (err) {
+      setTabs(oldTabs)
+      setError(err.message)
+    }
+  }
+
   async function createGroup() {
     try {
       const group = await request(`${API}/groups`, jsonOptions('POST', { name: 'Untitled', tab_id: selectedTabId, color: '#ffffff' }))
@@ -374,6 +396,29 @@ export default function App() {
       if (selectedGroupId === group.id) setSelectedGroupId(null)
       setError('')
     } catch (err) { setError(err.message) }
+  }
+
+  async function moveGroup(groupId, direction) {
+    const oldGroups = groups
+    const currentTabGroups = oldGroups.filter((group) => group.tab_id === selectedTabId)
+    const index = currentTabGroups.findIndex((group) => group.id === groupId)
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= currentTabGroups.length) return
+    const reordered = [...currentTabGroups]
+    const [moved] = reordered.splice(index, 1)
+    reordered.splice(target, 0, moved)
+    let position = 0
+    setGroups(oldGroups.map((group) => group.tab_id === selectedTabId ? reordered[position++] : group))
+    try {
+      await request(`${API}/groups-order`, jsonOptions('PUT', {
+        tab_id: selectedTabId,
+        group_ids: reordered.map((group) => group.id),
+      }))
+      setError('')
+    } catch (err) {
+      setGroups(oldGroups)
+      setError(err.message)
+    }
   }
 
   async function createCard(fields) {
@@ -425,10 +470,10 @@ export default function App() {
       {error && <p className="error" role="alert">{error}</p>}
 
       {loading ? <p className="empty">Opening your decks…</p> : tabs.length === 0 ? <section className="empty empty-first"><div className="empty-deck" aria-hidden="true"><span /><span /><span /></div><h2>No workspaces yet</h2><p>Enter edit mode to create your first workspace.</p>{editingStructure && <button onClick={createTab}><PlusIcon /> Create your first workspace</button>}</section> : <div className="workspace">
-        <nav className="tab-bar" aria-label="Workspaces">{tabs.map((tab) => <div className={`tab-item ${tab.id === selectedTabId ? 'active' : ''}`} key={tab.id}>{editingTabId === tab.id ? <input className="tab-name-input" autoFocus defaultValue={tab.name} maxLength="100" aria-label="Workspace name" onFocus={(event) => event.target.select()} onBlur={(event) => renameTab(tab, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setEditingTabId(null) }} /> : <button className="tab-select" onClick={() => selectTab(tab.id)} onDoubleClick={() => editingStructure && setEditingTabId(tab.id)}><span>{tab.name}</span></button>}{editingStructure && <button className="tab-delete" aria-label={`Delete ${tab.name}`} onClick={() => deleteTab(tab)}><TrashIcon /></button>}</div>)}{editingStructure && <button className="tab-add" aria-label="New workspace" onClick={createTab}><PlusIcon /></button>}</nav>
+        <nav className="tab-bar" aria-label="Workspaces">{tabs.map((tab, index) => <div className={`tab-item ${tab.id === selectedTabId ? 'active' : ''}`} key={tab.id}>{editingTabId === tab.id ? <input className="tab-name-input" autoFocus defaultValue={tab.name} maxLength="100" aria-label="Workspace name" onFocus={(event) => event.target.select()} onBlur={(event) => renameTab(tab, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setEditingTabId(null) }} /> : <button className="tab-select" onClick={() => selectTab(tab.id)} onDoubleClick={() => editingStructure && setEditingTabId(tab.id)}><span>{tab.name}</span></button>}{editingStructure && <><div className="tab-order"><button disabled={index === 0} aria-label={`Move ${tab.name} left`} onClick={() => moveTab(tab.id, -1)}><ChevronIcon direction="left" /></button><button disabled={index === tabs.length - 1} aria-label={`Move ${tab.name} right`} onClick={() => moveTab(tab.id, 1)}><ChevronIcon direction="right" /></button></div><button className="tab-delete" aria-label={`Delete ${tab.name}`} onClick={() => deleteTab(tab)}><TrashIcon /></button></>}</div>)}{editingStructure && <button className="tab-add" aria-label="New workspace" onClick={createTab}><PlusIcon /></button>}</nav>
         <section className="workspace-content">
           {tabGroups.length === 0 && !editingStructure ? <section className="empty"><h3>This workspace is empty</h3><p>Enter edit mode to create a deck.</p></section> : <>
-            <nav className="deck-grid" aria-label="Card decks">{tabGroups.map((group, index) => <div key={group.id} style={{ '--deck-index': index, '--deck-color': group.color, '--deck-dark-color': DARK_DECK_COLORS[group.color] ?? DARK_DECK_COLORS['#ffffff'] }} className={`deck-tile ${group.id === selectedGroupId ? 'active' : ''} ${editingGroupId === group.id ? 'deck-editing' : ''}`}>{editingGroupId === group.id ? <input autoFocus defaultValue={group.name} maxLength="100" aria-label="Deck name" onFocus={(event) => event.target.select()} onBlur={(event) => renameGroup(group, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setEditingGroupId(null) }} /> : <button className="deck-select" onClick={() => { setSelectedGroupId((current) => current === group.id ? null : group.id); setAdding(false); setAddingBulk(false); setEditingId(null) }} onDoubleClick={() => editingStructure && setEditingGroupId(group.id)}><span className="deck-name">{group.name}</span><small>{group.card_count} {group.card_count === 1 ? 'card' : 'cards'}</small></button>}{editingStructure && <><button className="deck-delete" aria-label={`Delete ${group.name}`} onClick={() => deleteGroup(group)}><TrashIcon /></button><button className="deck-color-button" aria-label={`Change ${group.name} color`} title="Deck color" onClick={() => setColorGroupId((current) => current === group.id ? null : group.id)}><span style={{ background: group.color }} /></button>{colorGroupId === group.id && <div className="deck-palette" role="group" aria-label={`Choose ${group.name} color`}><strong>Deck color</strong>{DECK_COLORS.map((color) => <button key={color} aria-label={`Use ${color}`} className={group.color === color ? 'active' : ''} style={{ background: color }} onClick={() => changeGroupColor(group, color)} />)}</div>}</>}</div>)}{editingStructure && <button className="deck-add" aria-label="Create deck" onClick={createGroup}><PlusIcon /></button>}</nav>
+            <nav className="deck-grid" aria-label="Card decks">{tabGroups.map((group, index) => <div key={group.id} style={{ '--deck-index': index, '--deck-color': group.color, '--deck-dark-color': DARK_DECK_COLORS[group.color] ?? DARK_DECK_COLORS['#ffffff'] }} className={`deck-tile ${group.id === selectedGroupId ? 'active' : ''} ${editingGroupId === group.id ? 'deck-editing' : ''}`}>{editingGroupId === group.id ? <input autoFocus defaultValue={group.name} maxLength="100" aria-label="Deck name" onFocus={(event) => event.target.select()} onBlur={(event) => renameGroup(group, event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') setEditingGroupId(null) }} /> : <button className="deck-select" onClick={() => { setSelectedGroupId((current) => current === group.id ? null : group.id); setAdding(false); setAddingBulk(false); setEditingId(null) }} onDoubleClick={() => editingStructure && setEditingGroupId(group.id)}><span className="deck-name">{group.name}</span><small>{group.card_count} {group.card_count === 1 ? 'card' : 'cards'}</small></button>}{editingStructure && <><button className="deck-delete" aria-label={`Delete ${group.name}`} onClick={() => deleteGroup(group)}><TrashIcon /></button><div className="deck-order"><button disabled={index === 0} aria-label={`Move ${group.name} left`} onClick={() => moveGroup(group.id, -1)}><ChevronIcon direction="left" /></button><button disabled={index === tabGroups.length - 1} aria-label={`Move ${group.name} right`} onClick={() => moveGroup(group.id, 1)}><ChevronIcon direction="right" /></button></div><button className="deck-color-button" aria-label={`Change ${group.name} color`} title="Deck color" onClick={() => setColorGroupId((current) => current === group.id ? null : group.id)}><span style={{ background: group.color }} /></button>{colorGroupId === group.id && <div className="deck-palette" role="group" aria-label={`Choose ${group.name} color`}><strong>Deck color</strong>{DECK_COLORS.map((color) => <button key={color} aria-label={`Use ${color}`} className={group.color === color ? 'active' : ''} style={{ background: color }} onClick={() => changeGroupColor(group, color)} />)}</div>}</>}</div>)}{editingStructure && <button className="deck-add" aria-label="Create deck" onClick={createGroup}><PlusIcon /></button>}</nav>
 
             {tabGroups.length > 0 && <section className="active-deck">
               <div className="study-launcher">

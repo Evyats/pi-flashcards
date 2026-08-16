@@ -24,6 +24,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+html { -webkit-tap-highlight-color: transparent; }
 html, body, #root { min-width: 320px; min-height: 100%; }
 body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 52% -20%, color-mix(in srgb,var(--accent) 5%,var(--page-bg)),var(--page-bg) 52%); }
 button, textarea, input, select { font: inherit; }
@@ -62,6 +63,9 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .tab-item.active .tab-select { color: var(--ink); }
 .tab-delete { display: grid; width: 28px; height: 34px; padding: 0; place-items: center; border: 0; color: #a84b56; background: transparent; }
 .tab-delete svg { width: 14px; height: 14px; }
+.tab-order { display: flex; }
+.tab-order button { display: grid; width: 22px; height: 34px; padding: 0; place-items: center; border: 0; color: var(--muted); background: transparent; }
+.tab-order button svg { width: 14px; height: 14px; }
 .tab-bar small { color: color-mix(in srgb,var(--muted) 80%,transparent); font-size: 10px; }
 .tab-bar .tab-add { display: grid; width: 32px; min-width: 32px; min-height: 40px; padding: 0; place-items: center; border: 0; color: var(--accent); background: transparent; }
 .tab-name-input { width: min(180px,45vw); min-height: 38px; padding: 6px 8px; border: 0; border-bottom: 3px solid var(--accent); border-radius: 0; color: var(--ink); background: transparent; font-weight: 670; }
@@ -80,7 +84,7 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .deck-tile::before,.deck-tile::after { position: absolute; z-index: -1; top: 100%; right: 8px; left: 8px; height: 6px; border-radius: 0 0 var(--radius) var(--radius); background: color-mix(in srgb,var(--deck-color,#ffffff) 91%,var(--ink)); content: ""; }
 .deck-tile::after { top: calc(100% + 6px); right: 16px; left: 16px; z-index: -2; background: color-mix(in srgb,var(--deck-color,#ffffff) 82%,var(--ink)); }
 .deck-tile:hover { transform: translateY(-2px); }
-.deck-tile.active { box-shadow: inset 0 0 0 2px color-mix(in srgb,var(--accent) 82%,var(--ink)); }
+.deck-tile.active { filter: drop-shadow(2px 0 0 var(--accent)) drop-shadow(-2px 0 0 var(--accent)) drop-shadow(0 2px 0 var(--accent)) drop-shadow(0 -2px 0 var(--accent)); }
 .deck-tile.active::before { background: color-mix(in srgb,var(--deck-color,#ffffff) 91%,var(--ink)); }
 .deck-tile.active::after { background: color-mix(in srgb,var(--deck-color,#ffffff) 82%,var(--ink)); }
 :root[data-theme="dark"] .deck-tile { background: var(--deck-dark-color,#343b47); }
@@ -94,6 +98,9 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .deck-editing input:focus-visible { outline: 0; }
 .deck-delete { position: absolute; z-index: 2; top: 5px; right: 5px; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: var(--radius); color: currentColor; background: color-mix(in srgb,var(--surface) 18%,transparent); opacity: .75; }
 .deck-delete svg { width: 14px; height: 14px; }
+.deck-order { position: absolute; z-index: 3; right: 38px; bottom: 5px; display: flex; }
+.deck-order button { display: grid; width: 25px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: var(--radius); color: currentColor; background: color-mix(in srgb,var(--ink) 7%,transparent); }
+.deck-order button svg { width: 15px; height: 15px; }
 .deck-color-button { position: absolute; z-index: 3; right: 5px; bottom: 5px; display: grid; width: 28px; height: 28px; padding: 0; place-items: center; border: 0; border-radius: var(--radius); background: color-mix(in srgb,var(--ink) 7%,transparent); }
 .deck-color-button span { width: 17px; height: 17px; border: 1px solid color-mix(in srgb,var(--ink) 20%,transparent); border-radius: 50%; }
 .deck-palette { position: absolute; z-index: 5; right: 4px; bottom: 38px; display: grid; grid-template-columns: repeat(3,20px); gap: 7px; padding: 8px; border: 1px solid color-mix(in srgb,var(--ink) 16%,transparent); border-radius: var(--radius); background: var(--surface); }
