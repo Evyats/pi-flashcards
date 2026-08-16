@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { copyText } from '../clipboard'
 import { ArrowIcon } from './Icons'
 
 const EMPTY_CARD = { front: '', back: '' }
@@ -57,19 +58,7 @@ export function BulkCardForm({ onSubmit, onCancel }) {
 
   async function copyPrompt() {
     try {
-      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(BULK_PROMPT)
-      else {
-        const textarea = document.createElement('textarea')
-        textarea.value = BULK_PROMPT
-        textarea.readOnly = true
-        textarea.style.position = 'fixed'
-        textarea.style.opacity = '0'
-        document.body.appendChild(textarea)
-        textarea.select()
-        const copied = document.execCommand('copy')
-        textarea.remove()
-        if (!copied) throw new Error('Copy failed')
-      }
+      await copyText(BULK_PROMPT)
       setMessage('Prompt copied.')
     } catch { setMessage('Could not access the clipboard.') }
   }

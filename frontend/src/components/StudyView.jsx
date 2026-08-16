@@ -29,7 +29,8 @@ export default function StudyView({ cards, groupName, mode, onClose, onReview })
     <div className="study-progress" role="progressbar" aria-label="Batch progress" aria-valuemin="0" aria-valuemax={batchSize} aria-valuenow={batchSize}><span style={{ width: '100%' }} /></div>
     <p className="eyebrow">{allFinished ? 'SESSION COMPLETE' : 'BATCH COMPLETE'}</p><h1>{groupName}</h1>
     <div className="result-counts"><strong>{results.known} knew</strong><strong>{results.missed} missed</strong></div>
-    {allFinished ? <button onClick={onClose}>Back to cards <ArrowIcon /></button> : <div className="result-actions"><button className="quiet-button" onClick={onClose}>Back to cards</button><button onClick={() => { setBatchStart(batchEnd); setResults({ known: 0, missed: 0 }) }}>Continue with {session.length - batchEnd} remaining <ArrowIcon /></button></div>}
+    {!allFinished && <p className="result-remaining">{session.length - batchEnd} remaining</p>}
+    {allFinished ? <button onClick={onClose}>Back to cards <ArrowIcon /></button> : <div className="result-actions"><button className="quiet-button" onClick={onClose}>Back to cards</button><button onClick={() => { setBatchStart(batchEnd); setResults({ known: 0, missed: 0 }) }}>Continue <ArrowIcon /></button></div>}
   </section>
 
   const card = session[index]
