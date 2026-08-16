@@ -116,6 +116,12 @@ def initialize_database() -> None:
             connection.execute(
                 "ALTER TABLE cards ADD COLUMN group_id INTEGER REFERENCES card_groups(id) ON DELETE CASCADE"
             )
+        if "memory_level" not in columns:
+            connection.execute(
+                "ALTER TABLE cards ADD COLUMN memory_level INTEGER NOT NULL DEFAULT 0"
+            )
+        if "next_review_at" not in columns:
+            connection.execute("ALTER TABLE cards ADD COLUMN next_review_at TEXT")
         ungrouped = connection.execute(
             "SELECT 1 FROM cards WHERE group_id IS NULL LIMIT 1"
         ).fetchone()
