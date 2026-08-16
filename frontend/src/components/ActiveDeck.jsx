@@ -1,12 +1,28 @@
+import { useState } from 'react'
+import { copyText } from '../clipboard'
 import { BulkCardForm, CardForm } from './CardForms'
 import CardFilters from './CardFilters'
-import { ArrowIcon, ImportIcon, PlusIcon, TrashIcon } from './Icons'
+import { ArrowIcon, ExportIcon, ImportIcon, PlusIcon, TrashIcon } from './Icons'
 
 export default function ActiveDeck({ selectedGroup, studyReady, studyCards, onPrepareStudy, onStartStudy, filter, onFilter, counts, editing, adding, addingBulk, onStartAdd, onStartBulk, onCancelAdd, onCancelBulk, onCreate, onCreateBulk, cards, editingCardId, onEditCard, onCancelEditCard, onUpdateCard, onDeleteCard, listRef }) {
+  const [exportStatus, setExportStatus] = useState('')
+
+  async function exportCards() {
+    const payload = cards.map(({ front, back }) => ({ front, back }))
+    try {
+      await copyText(JSON.stringify(payload, null, 2))
+      setExportStatus(`${payload.length} ${payload.length === 1 ? 'card' : 'cards'} copied`)
+    } catch {
+      setExportStatus('Could not access the clipboard')
+    }
+  }
+
   const addActions = editing ? (
     <div className="add-card-actions">
       <button className="add-card" disabled={filter !== 'all'} aria-label="Add card" title="Add card" onClick={onStartAdd}><PlusIcon /></button>
       <button className="add-card" disabled={filter !== 'all'} aria-label="Import cards from JSON" title="Import cards from JSON" onClick={onStartBulk}><ImportIcon /></button>
+      <button className="add-card" disabled={!cards.length} aria-label="Copy cards as JSON" title="Copy cards as JSON" onClick={exportCards}><ExportIcon /></button>
+      <span className="sr-only" role="status">{exportStatus}</span>
     </div>
   ) : null
 

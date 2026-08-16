@@ -22,6 +22,10 @@ export function ImportIcon() {
   return <Icon><path d="M12 3v12m-4-4 4 4 4-4M5 18v3h14v-3" /></Icon>
 }
 
+export function ExportIcon() {
+  return <Icon><path d="M12 21V9m-4 4 4-4 4 4M5 6V3h14v3" /></Icon>
+}
+
 export function ChevronIcon({ direction }) {
   const path = direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 6 6 6-6 6'
   return <Icon><path d={path} /></Icon>
