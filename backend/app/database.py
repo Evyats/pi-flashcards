@@ -22,6 +22,7 @@ def initialize_database() -> None:
             CREATE TABLE IF NOT EXISTS tabs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+                sort_order INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -33,6 +34,7 @@ def initialize_database() -> None:
                 name TEXT NOT NULL CHECK(length(trim(name)) > 0),
                 tab_id INTEGER REFERENCES tabs(id) ON DELETE CASCADE,
                 color TEXT NOT NULL DEFAULT '#ffffff',
+                sort_order INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -49,6 +51,19 @@ def initialize_database() -> None:
             connection.execute(
                 "ALTER TABLE card_groups ADD COLUMN color TEXT NOT NULL DEFAULT '#ffffff'"
             )
+        if "sort_order" not in group_columns:
+            connection.execute(
+                "ALTER TABLE card_groups ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"
+            )
+            connection.execute("UPDATE card_groups SET sort_order = id")
+        tab_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(tabs)").fetchall()
+        }
+        if "sort_order" not in tab_columns:
+            connection.execute(
+                "ALTER TABLE tabs ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0"
+            )
+            connection.execute("UPDATE tabs SET sort_order = id")
         color_updates = {
             "#fff4f4": "#f7e4e6",
             "#fff8e8": "#f6ebd2",

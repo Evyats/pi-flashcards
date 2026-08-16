@@ -25,6 +25,7 @@ class NamedFields(BaseModel):
 
 class Tab(NamedFields):
     id: int
+    sort_order: int
     created_at: str
     group_count: int = 0
 
@@ -44,6 +45,7 @@ class GroupFields(NamedFields):
 
 class Group(GroupFields):
     id: int
+    sort_order: int
     created_at: str
     card_count: int = 0
 
@@ -67,6 +69,15 @@ class CardFields(BaseModel):
 class Card(CardFields):
     id: int
     created_at: str
+
+
+class TabOrder(BaseModel):
+    tab_ids: list[int]
+
+
+class GroupOrder(BaseModel):
+    tab_id: int
+    group_ids: list[int]
 
 
 @asynccontextmanager
@@ -175,7 +186,7 @@ def delete_card(card_id: int) -> Response:
 def list_groups(tab_id: int | None = None) -> list[Group]:
     with get_connection() as connection:
         query = """
-            SELECT card_groups.id, card_groups.name, card_groups.tab_id, card_groups.color, card_groups.created_at,
+            SELECT card_groups.id, card_groups.name, card_groups.tab_id, card_groups.color, card_groups.sort_order, card_groups.created_at,
                    COUNT(cards.id) AS card_count
             FROM card_groups
             LEFT JOIN cards ON cards.group_id = card_groups.id
@@ -186,7 +197,7 @@ def list_groups(tab_id: int | None = None) -> list[Group]:
             parameters = (tab_id,)
         query += """
             GROUP BY card_groups.id
-            ORDER BY card_groups.id ASC
+            ORDER BY card_groups.tab_id ASC, card_groups.sort_order ASC, card_groups.id ASC
         """
         rows = connection.execute(query, parameters).fetchall()
     return [Group(**dict(row)) for row in rows]
@@ -196,14 +207,18 @@ def list_groups(tab_id: int | None = None) -> list[Group]:
 def create_group(payload: GroupFields) -> Group:
     with get_connection() as connection:
         cursor = connection.execute(
-            "INSERT INTO card_groups (name, tab_id, color) SELECT ?, id, ? FROM tabs WHERE id = ?",
-            (payload.name, payload.color, payload.tab_id),
+            """
+            INSERT INTO card_groups (name, tab_id, color, sort_order)
+            SELECT ?, id, ?, COALESCE((SELECT MAX(sort_order) + 1 FROM card_groups WHERE tab_id = ?), 0)
+            FROM tabs WHERE id = ?
+            """,
+            (payload.name, payload.color, payload.tab_id, payload.tab_id),
         )
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Tab not found")
         group_id = cursor.lastrowid
         row = connection.execute(
-            "SELECT id, name, tab_id, color, created_at, 0 AS card_count FROM card_groups WHERE id = ?",
+            "SELECT id, name, tab_id, color, sort_order, created_at, 0 AS card_count FROM card_groups WHERE id = ?",
             (group_id,),
         ).fetchone()
     return Group(**dict(row))
@@ -219,13 +234,33 @@ def update_group(group_id: int, payload: GroupFields) -> Group:
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Group not found")
         row = connection.execute(
-            """SELECT card_groups.id, card_groups.name, card_groups.tab_id, card_groups.color, card_groups.created_at,
+            """SELECT card_groups.id, card_groups.name, card_groups.tab_id, card_groups.color, card_groups.sort_order, card_groups.created_at,
                       COUNT(cards.id) AS card_count
                FROM card_groups LEFT JOIN cards ON cards.group_id = card_groups.id
                WHERE card_groups.id = ? GROUP BY card_groups.id""",
             (group_id,),
         ).fetchone()
     return Group(**dict(row))
+
+
+@app.put(f"{API_PREFIX}/groups-order", status_code=status.HTTP_204_NO_CONTENT)
+def reorder_groups(payload: GroupOrder) -> Response:
+    if len(payload.group_ids) != len(set(payload.group_ids)):
+        raise HTTPException(status_code=400, detail="Group IDs must be unique")
+    with get_connection() as connection:
+        current_ids = [
+            row[0]
+            for row in connection.execute(
+                "SELECT id FROM card_groups WHERE tab_id = ?", (payload.tab_id,)
+            )
+        ]
+        if set(payload.group_ids) != set(current_ids):
+            raise HTTPException(status_code=409, detail="Deck list is out of date")
+        connection.executemany(
+            "UPDATE card_groups SET sort_order = ? WHERE id = ? AND tab_id = ?",
+            [(position, group_id, payload.tab_id) for position, group_id in enumerate(payload.group_ids)],
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.delete(f"{API_PREFIX}/groups/{{group_id}}", status_code=status.HTTP_204_NO_CONTENT)
@@ -242,12 +277,12 @@ def list_tabs() -> list[Tab]:
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT tabs.id, tabs.name, tabs.created_at,
+            SELECT tabs.id, tabs.name, tabs.sort_order, tabs.created_at,
                    COUNT(card_groups.id) AS group_count
             FROM tabs
             LEFT JOIN card_groups ON card_groups.tab_id = tabs.id
             GROUP BY tabs.id
-            ORDER BY tabs.id ASC
+            ORDER BY tabs.sort_order ASC, tabs.id ASC
             """
         ).fetchall()
     return [Tab(**dict(row)) for row in rows]
@@ -256,9 +291,12 @@ def list_tabs() -> list[Tab]:
 @app.post(f"{API_PREFIX}/tabs", response_model=Tab, status_code=status.HTTP_201_CREATED)
 def create_tab(payload: NamedFields) -> Tab:
     with get_connection() as connection:
-        cursor = connection.execute("INSERT INTO tabs (name) VALUES (?)", (payload.name,))
+        cursor = connection.execute(
+            "INSERT INTO tabs (name, sort_order) VALUES (?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM tabs))",
+            (payload.name,),
+        )
         row = connection.execute(
-            "SELECT id, name, created_at, 0 AS group_count FROM tabs WHERE id = ?",
+            "SELECT id, name, sort_order, created_at, 0 AS group_count FROM tabs WHERE id = ?",
             (cursor.lastrowid,),
         ).fetchone()
     return Tab(**dict(row))
@@ -271,13 +309,28 @@ def update_tab(tab_id: int, payload: NamedFields) -> Tab:
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Tab not found")
         row = connection.execute(
-            """SELECT tabs.id, tabs.name, tabs.created_at,
+            """SELECT tabs.id, tabs.name, tabs.sort_order, tabs.created_at,
                       COUNT(card_groups.id) AS group_count
                FROM tabs LEFT JOIN card_groups ON card_groups.tab_id = tabs.id
                WHERE tabs.id = ? GROUP BY tabs.id""",
             (tab_id,),
         ).fetchone()
     return Tab(**dict(row))
+
+
+@app.put(f"{API_PREFIX}/tabs-order", status_code=status.HTTP_204_NO_CONTENT)
+def reorder_tabs(payload: TabOrder) -> Response:
+    if len(payload.tab_ids) != len(set(payload.tab_ids)):
+        raise HTTPException(status_code=400, detail="Tab IDs must be unique")
+    with get_connection() as connection:
+        current_ids = [row[0] for row in connection.execute("SELECT id FROM tabs")]
+        if set(payload.tab_ids) != set(current_ids):
+            raise HTTPException(status_code=409, detail="Tab list is out of date")
+        connection.executemany(
+            "UPDATE tabs SET sort_order = ? WHERE id = ?",
+            [(position, tab_id) for position, tab_id in enumerate(payload.tab_ids)],
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @app.delete(f"{API_PREFIX}/tabs/{{tab_id}}", status_code=status.HTTP_204_NO_CONTENT)
