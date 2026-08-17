@@ -156,7 +156,17 @@ export default function App() {
   }
 
   async function changeGroupColor(group, color) {
-    if (await actions.updateGroup(group, { color })) patchUi({ colorGroupId: null })
+    await actions.updateGroup(group, { color })
+  }
+
+  function startAddingCards(mode) {
+    patchUi({
+      cardFilter: 'all',
+      addingMode: mode,
+      editingCardId: null,
+      studyModeContext: null,
+      reservedBottomSpace: 0,
+    })
   }
 
   async function deleteGroup(group) {
@@ -253,7 +263,7 @@ export default function App() {
                 studyCards={studyCards} onPrepareStudy={() => patchUi({ studyModeContext: currentStudyContext })} onStartStudy={startStudying}
                 filter={cardFilter} onFilter={chooseCardFilter} counts={filterCounts} editing={editingStructure}
                 adding={adding} addingBulk={addingBulk}
-                onStartAdd={() => patchUi({ addingMode: 'single' })} onStartBulk={() => patchUi({ addingMode: 'bulk' })}
+                onStartAdd={() => startAddingCards('single')} onStartBulk={() => startAddingCards('bulk')}
                 onCancelAdd={() => patchUi({ addingMode: null })} onCancelBulk={() => patchUi({ addingMode: null })} onCreate={createCard} onCreateBulk={createCardsBulk}
                 cards={visibleCards} editingCardId={editingCardId} onEditCard={(id) => patchUi({ editingCardId: id })} onCancelEditCard={() => patchUi({ editingCardId: null })}
                 onUpdateCard={updateCard} onDeleteCard={deleteCard} listRef={cardListRegionRef}

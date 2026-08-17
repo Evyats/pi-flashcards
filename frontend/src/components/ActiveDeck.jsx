@@ -19,8 +19,8 @@ export default function ActiveDeck({ selectedGroup, studyReady, studyCards, onPr
 
   const addActions = editing ? (
     <div className="add-card-actions">
-      <button className="add-card" disabled={filter !== 'all'} aria-label="Add card" title="Add card" onClick={onStartAdd}><PlusIcon /></button>
-      <button className="add-card" disabled={filter !== 'all'} aria-label="Import cards from JSON" title="Import cards from JSON" onClick={onStartBulk}><ImportIcon /></button>
+      <button className="add-card" aria-label="Add card" title="Add card" onClick={onStartAdd}><PlusIcon /></button>
+      <button className="add-card" aria-label="Import cards from JSON" title="Import cards from JSON" onClick={onStartBulk}><ImportIcon /></button>
       <button className="add-card" disabled={!cards.length} aria-label="Copy cards as JSON" title="Copy cards as JSON" onClick={exportCards}><ExportIcon /></button>
       <span className="sr-only" role="status">{exportStatus}</span>
     </div>
