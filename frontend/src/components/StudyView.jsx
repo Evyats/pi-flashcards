@@ -51,6 +51,7 @@ export default function StudyView({ cards, groupName, mode, onClose, onReview })
       setIndex((current) => current + 1)
       setRevealed(false)
       setExitDirection(null)
+      if (index + 1 >= batchEnd) playSound('batch-complete')
     }, 380)
   }
 
