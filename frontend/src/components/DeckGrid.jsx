@@ -1,6 +1,6 @@
 import { ChevronIcon, PlusIcon, TrashIcon } from './Icons'
 
-export default function DeckGrid({ groups, selectedId, editingId, editing, colorGroupId, colors, darkColors, onSelect, onEdit, onRename, onMove, onDelete, onCreate, onToggleColor, onColor, onCancelEdit }) {
+export default function DeckGrid({ groups, selectedId, editingId, editing, colorGroupId, colors, darkColors, knownCardsByGroup, onSelect, onEdit, onRename, onMove, onDelete, onCreate, onToggleColor, onColor, onCancelEdit }) {
   function handleNameKeyDown(event) {
     if (event.key === 'Enter') event.currentTarget.blur()
     if (event.key === 'Escape') onCancelEdit()
@@ -8,7 +8,10 @@ export default function DeckGrid({ groups, selectedId, editingId, editing, color
 
   return (
     <nav className="deck-grid" aria-label="Card decks">
-      {groups.map((group, index) => (
+      {groups.map((group, index) => {
+        const knownCount = knownCardsByGroup.get(group.id) ?? 0
+        const knownPercent = group.card_count ? (knownCount / group.card_count) * 100 : 0
+        return (
         <div
           key={group.id}
           style={{ '--deck-index': index, '--deck-color': group.color, '--deck-dark-color': darkColors[group.color] ?? darkColors['#ffffff'] }}
@@ -19,7 +22,12 @@ export default function DeckGrid({ groups, selectedId, editingId, editing, color
           ) : (
             <button className="deck-select" onClick={() => onSelect(group.id)} onDoubleClick={() => editing && onEdit(group.id)}>
               <span className="deck-name">{group.name}</span>
-              <small>{group.card_count} {group.card_count === 1 ? 'card' : 'cards'}</small>
+              <span className="deck-meta">
+                <small>{group.card_count} {group.card_count === 1 ? 'card' : 'cards'}</small>
+                <span className="deck-known-progress" role="progressbar" aria-label={`${knownCount} of ${group.card_count} cards known`} aria-valuemin="0" aria-valuemax={Math.max(group.card_count, 1)} aria-valuenow={knownCount} title={`${knownCount} of ${group.card_count} known`}>
+                  <span style={{ width: `${knownPercent}%` }} />
+                </span>
+              </span>
             </button>
           )}
           {editing && (
@@ -39,7 +47,7 @@ export default function DeckGrid({ groups, selectedId, editingId, editing, color
             </>
           )}
         </div>
-      ))}
+      )})}
       {editing && <button className="deck-add" aria-label="Create deck" onClick={onCreate}><PlusIcon /></button>}
     </nav>
   )

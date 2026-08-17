@@ -38,6 +38,13 @@ export default function App() {
   const patchUi = (value) => dispatch({ type: 'PATCH', value })
 
   const tabGroups = useMemo(() => groups.filter((group) => group.tab_id === selectedTabId), [groups, selectedTabId])
+  const knownCardsByGroup = useMemo(() => {
+    const counts = new Map()
+    cards.forEach((card) => {
+      if (card.is_known) counts.set(card.group_id, (counts.get(card.group_id) ?? 0) + 1)
+    })
+    return counts
+  }, [cards])
   const selectedTab = tabs.find((tab) => tab.id === selectedTabId) ?? null
   const selectedGroup = groups.find((group) => group.id === selectedGroupId && group.tab_id === selectedTabId) ?? null
   const allDecksSelected = selectedGroupId === ALL_DECKS
@@ -100,7 +107,7 @@ export default function App() {
 
   function selectTab(tabId) {
     if (tabId === selectedTabId) {
-      if (!allDecksSelected) playSound('deck-soft')
+      playSound(allDecksSelected ? 'deck-soft-low' : 'deck-soft')
       dispatch({ type: 'TOGGLE_ALL_DECKS' })
       return
     }
@@ -108,6 +115,7 @@ export default function App() {
   }
 
   function selectGroup(groupId) {
+    if (groupId === selectedGroupId) playSound('deck-soft-low')
     dispatch({ type: 'SELECT_GROUP', groupId })
   }
 
@@ -202,10 +210,18 @@ export default function App() {
     else setStudying(false)
   }
 
-  if (studying && selectedTab) return <main className="app"><StudyView cards={studyCards} groupName={studyTitle} mode={studyMode} onClose={closeStudying} onReview={reviewCard} /></main>
+  function playDefaultButtonSound(event) {
+    const button = event.target.closest('button')
+    if (!button || button.disabled) return
+    const hasDedicatedSound = button.matches('.deck-select, .study-card-scene, .study-controls button')
+      || (button.matches('.tab-select') && button.closest('.tab-item')?.classList.contains('active'))
+    if (!hasDedicatedSound) playSound('button-tiny-pop')
+  }
+
+  if (studying && selectedTab) return <main className="app" onClickCapture={playDefaultButtonSound}><StudyView cards={studyCards} groupName={studyTitle} mode={studyMode} onClose={closeStudying} onReview={reviewCard} /></main>
 
   return (
-    <main className="app">
+    <main className="app" onClickCapture={playDefaultButtonSound}>
       <header className="app-header">
         <div className="brand-mark" aria-hidden="true"><span /><span /><span /></div>
         <div className="brand-copy"><p className="eyebrow">PI FLASHCARDS</p><h1>Make it stick.</h1><p className="summary">Your private space for active recall.</p></div>
@@ -223,6 +239,7 @@ export default function App() {
           {tabGroups.length === 0 && !editingStructure ? <section className="empty"><h3>This workspace is empty</h3><p>Enter edit mode to create a deck.</p></section> : <>
             <DeckGrid
               groups={tabGroups} selectedId={selectedGroupId} editingId={editingGroupId} editing={editingStructure}
+              knownCardsByGroup={knownCardsByGroup}
               colorGroupId={colorGroupId} colors={DECK_COLORS} darkColors={DARK_DECK_COLORS}
               onSelect={selectGroup} onEdit={(id) => patchUi({ editingGroupId: id })} onRename={renameGroup} onMove={moveGroup}
               onDelete={deleteGroup} onCreate={createGroup}
