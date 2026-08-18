@@ -2,7 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import ActiveDeck from './components/ActiveDeck'
 import DeckGrid from './components/DeckGrid'
-import { PlusIcon, ThemeIcon } from './components/Icons'
+import { GearIcon, PlusIcon, ThemeIcon } from './components/Icons'
 import StudyView from './components/StudyView'
 import WorkspaceTabs from './components/WorkspaceTabs'
 import useFlashcardsData from './hooks/useFlashcardsData'
@@ -24,6 +24,7 @@ const DARK_DECK_COLORS = {
 
 export default function App() {
   const cardListRegionRef = useRef(null)
+  const studyButtonRef = useRef(null)
   const { tabs, groups, cards, loading, error, actions } = useFlashcardsData()
   const [ui, dispatch] = useReducer(uiReducer, initialUiState)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pi-flashcards-theme') === 'dark')
@@ -104,6 +105,89 @@ export default function App() {
     document.addEventListener('pointerdown', closePalette)
     return () => document.removeEventListener('pointerdown', closePalette)
   }, [colorGroupId])
+
+  function switchTab(direction) {
+    if (!tabs.length) return
+    const currentIndex = tabs.findIndex((tab) => tab.id === selectedTabId)
+    if (currentIndex === -1) return
+    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length
+    playSound('button-tiny-pop')
+    dispatch({ type: 'SELECT_TAB', tabId: tabs[nextIndex].id })
+  }
+
+  function navigateDeckGrid(key) {
+    if (!tabGroups.length) return
+    const currentIndex = tabGroups.findIndex((group) => group.id === selectedGroupId)
+    if (currentIndex === -1) {
+      dispatch({ type: 'FOCUS_GROUP', groupId: tabGroups[0].id })
+      return
+    }
+    const columns = window.innerWidth <= 760 ? 2 : 3
+    const count = tabGroups.length
+    const row = Math.floor(currentIndex / columns)
+    const col = currentIndex % columns
+    const rowCount = Math.ceil(count / columns)
+    const rowStart = row * columns
+    const rowEnd = Math.min(rowStart + columns, count) - 1
+    let nextIndex = currentIndex
+    if (key === 'ArrowLeft') nextIndex = col === 0 ? rowEnd : currentIndex - 1
+    else if (key === 'ArrowRight') nextIndex = currentIndex === rowEnd ? rowStart : currentIndex + 1
+    else if (key === 'ArrowUp') {
+      const previousRow = row === 0 ? rowCount - 1 : row - 1
+      nextIndex = Math.min(previousRow * columns + col, count - 1)
+    } else if (key === 'ArrowDown') {
+      const nextRow = row === rowCount - 1 ? 0 : row + 1
+      nextIndex = Math.min(nextRow * columns + col, count - 1)
+    }
+    dispatch({ type: 'FOCUS_GROUP', groupId: tabGroups[nextIndex].id })
+  }
+
+  useEffect(() => {
+    function isTextEntry(target) {
+      const tag = target.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+    }
+    function handleKeyDown(event) {
+      if (studying) return
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      if (isTextEntry(event.target)) return
+
+      if (!event.repeat && event.key.toLowerCase() === 'e') {
+        event.preventDefault()
+        playSound('button-tiny-pop')
+        dispatch({ type: 'TOGGLE_STRUCTURE_EDITING' })
+        return
+      }
+      if (event.key === 'Escape') {
+        if (selectedGroupId !== null) {
+          event.preventDefault()
+          playSound('deck-soft-low')
+          dispatch({ type: 'FOCUS_GROUP', groupId: null })
+        }
+        return
+      }
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+        if (selectedGroupId === null) {
+          event.preventDefault()
+          if (event.key === 'ArrowLeft') switchTab(-1)
+          else if (event.key === 'ArrowRight') switchTab(1)
+          else if (tabGroups.length) dispatch({ type: 'FOCUS_GROUP', groupId: tabGroups[0].id })
+          return
+        }
+        if (!tabGroups.length) return
+        event.preventDefault()
+        navigateDeckGrid(event.key)
+        return
+      }
+      if (event.key === 'Enter') {
+        if (event.target.tagName === 'BUTTON') return
+        event.preventDefault()
+        studyButtonRef.current?.click()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
 
   function selectTab(tabId) {
     if (tabId === selectedTabId) {
@@ -235,7 +319,10 @@ export default function App() {
       <header className="app-header">
         <div className="brand-mark" aria-hidden="true"><span /><span /><span /></div>
         <div className="brand-copy"><p className="eyebrow">PI FLASHCARDS</p><h1>Make it stick.</h1><p className="summary">Your private space for active recall.</p></div>
-        <div className="header-actions"><button className="theme-toggle" aria-label={darkMode ? 'Use light mode' : 'Use dark mode'} title={darkMode ? 'Light mode' : 'Dark mode'} onClick={toggleTheme}><ThemeIcon dark={darkMode} /></button><button className={`edit-structure ${editingStructure ? 'active' : ''}`} onClick={() => dispatch({ type: 'TOGGLE_STRUCTURE_EDITING' })}>{editingStructure ? 'Done' : 'Edit'}</button></div>
+        <div className="header-actions">
+          {editingStructure && <button className="theme-toggle" aria-label={darkMode ? 'Use light mode' : 'Use dark mode'} title={darkMode ? 'Light mode' : 'Dark mode'} onClick={toggleTheme}><ThemeIcon dark={darkMode} /></button>}
+          <button className={`edit-structure ${editingStructure ? 'active' : ''}`} aria-label={editingStructure ? 'Done editing' : 'Edit workspace'} title={editingStructure ? 'Done editing (e)' : 'Edit workspace (e)'} onClick={() => dispatch({ type: 'TOGGLE_STRUCTURE_EDITING' })}><GearIcon /></button>
+        </div>
       </header>
       {error && <p className="error" role="alert">{error}</p>}
 
@@ -261,6 +348,7 @@ export default function App() {
               <ActiveDeck
                 selectedGroup={selectedGroup} studyReady={studyModeContext === currentStudyContext}
                 studyCards={studyCards} onPrepareStudy={() => patchUi({ studyModeContext: currentStudyContext })} onStartStudy={startStudying}
+                studyButtonRef={studyButtonRef}
                 filter={cardFilter} onFilter={chooseCardFilter} counts={filterCounts} editing={editingStructure}
                 adding={adding} addingBulk={addingBulk}
                 onStartAdd={() => startAddingCards('single')} onStartBulk={() => startAddingCards('bulk')}

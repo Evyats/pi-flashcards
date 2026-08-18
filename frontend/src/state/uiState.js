@@ -41,6 +41,16 @@ export function uiReducer(state, action) {
         cardFilter: 'all',
         reservedBottomSpace: 0,
       }
+    case 'FOCUS_GROUP':
+      return {
+        ...state,
+        selectedGroupId: action.groupId,
+        editingCardId: null,
+        addingMode: null,
+        studyModeContext: null,
+        cardFilter: 'all',
+        reservedBottomSpace: 0,
+      }
     case 'TOGGLE_ALL_DECKS':
       return {
         ...state,

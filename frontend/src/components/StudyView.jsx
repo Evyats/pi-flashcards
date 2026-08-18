@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { playSound } from '../sounds'
 import { ArrowIcon, CheckIcon, CrossIcon } from './Icons'
 
@@ -25,13 +25,35 @@ export default function StudyView({ cards, groupName, mode, onClose, onReview })
   const batchFinished = index >= batchEnd
   const allFinished = index >= session.length
 
-  if (batchFinished) return <section className="study study-results">
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.ctrlKey || event.metaKey || event.altKey) return
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return }
+      if (batchFinished) {
+        if (event.key === 'Enter') {
+          event.preventDefault()
+          if (allFinished) onClose()
+          else { setBatchStart(batchEnd); setResults({ known: 0, missed: 0 }) }
+        }
+        return
+      }
+      if (event.key === 'ArrowLeft') { event.preventDefault(); answerCard(false) }
+      else if (event.key === 'ArrowRight') { event.preventDefault(); answerCard(true) }
+      else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); flipCard() }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  })
+
+  if (batchFinished) {
+    return <section className="study study-results">
     <div className="study-progress" role="progressbar" aria-label="Batch progress" aria-valuemin="0" aria-valuemax={batchSize} aria-valuenow={batchSize}><span style={{ width: '100%' }} /></div>
     <p className="eyebrow">{allFinished ? 'SESSION COMPLETE' : 'BATCH COMPLETE'}</p><h1>{groupName}</h1>
     <div className="result-counts"><strong>{results.known} knew</strong><strong>{results.missed} missed</strong></div>
     {!allFinished && <p className="result-remaining">{session.length - batchEnd} remaining</p>}
     {allFinished ? <button onClick={onClose}>Back to cards <ArrowIcon /></button> : <div className="result-actions"><button className="quiet-button" onClick={onClose}>Back to cards</button><button onClick={() => { setBatchStart(batchEnd); setResults({ known: 0, missed: 0 }) }}>Continue <ArrowIcon /></button></div>}
-  </section>
+    </section>
+  }
 
   const card = session[index]
   const reversed = mode === 'back' || (mode === 'alternating' && index % 2 === 1)
