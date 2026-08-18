@@ -4,6 +4,19 @@ import { ArrowIcon } from './Icons'
 
 const EMPTY_CARD = { front: '', back: '' }
 const BULK_PROMPT = 'Create flashcards as valid JSON only. Return an array where every item has exactly two string fields: "front" and "back". Example: [{"front":"Hello","back":"שלום"}]. Do not use Markdown or add any explanation.'
+const FULL_PROMPT = `I want to generate some flashcards based on what came up in this conversation. Please give me a list of questions I could add (no answers yet), and I’ll choose the ones I find relevant.
+
+Focus especially on topics I explored more deeply, since those were important for me to really understand. Keep the questions short, and focus especially on terms and concepts.
+
+For questions about terms—for example, “What is a CDN?”—I prefer simply **“CDN”**. When I see that flashcard, I’ll understand that I’m supposed to define the term. Similarly, instead of “What does CRUD stand for?”, use **“CRUD stands for…”**.
+
+Only include things we actually discussed in some depth, not terms that were merely mentioned briefly. If we discussed the differences between two concepts, you can also include questions like **“X vs. Y”**.
+
+After that, I’ll send you the questions I want to add. In response, return them with their answers in the following format:
+
+\`[{"front":"Hello","back":"שלום"}]\`
+
+Please indent the JSON so it’s easy to read. Keep the answers short and concise whenever possible—I don’t like being overwhelmed with too much text.`
 
 export function CardForm({ initial = EMPTY_CARD, submitLabel, onSubmit, onCancel }) {
   const [front, setFront] = useState(initial.front)
@@ -63,8 +76,21 @@ export function BulkCardForm({ onSubmit, onCancel }) {
     } catch { setMessage('Could not access the clipboard.') }
   }
 
+  async function copyFullPrompt() {
+    try {
+      await copyText(FULL_PROMPT)
+      setMessage('Prompt copied.')
+    } catch { setMessage('Could not access the clipboard.') }
+  }
+
   return <form className="bulk-card-form" onSubmit={submit}>
-    <div className="bulk-form-heading"><div><h3>Import cards</h3><p>Paste a JSON array of front/back pairs.</p></div><button type="button" className="copy-prompt" onClick={copyPrompt}>Copy GPT prompt</button></div>
+    <div className="bulk-form-heading">
+      <div><h3>Import cards</h3><p>Paste a JSON array of front/back pairs.</p></div>
+      <div className="copy-prompt-actions">
+        <button type="button" className="copy-prompt" onClick={copyFullPrompt}>Copy conversation prompt</button>
+        <button type="button" className="copy-prompt" onClick={copyPrompt}>Copy format prompt</button>
+      </div>
+    </div>
     <textarea autoFocus spellCheck="false" value={value} onChange={(event) => setValue(event.target.value)} placeholder={'[{"front":"Hello","back":"שלום"}]'} />
     {message && <p className="bulk-message" role="status">{message}</p>}
     <div className="form-actions"><button type="button" className="quiet-button" onClick={onCancel}>Cancel</button><button disabled={!value.trim()}>Add cards</button></div>
