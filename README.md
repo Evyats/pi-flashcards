@@ -65,8 +65,18 @@ npm test
 ## Deploy
 
 Push changes to `main`, then check [GitHub Actions](https://github.com/Evyats/pi-flashcards/actions).
-Wait for **Build deploy branch** to turn green, then run on the Pi:
+Wait for **Build deploy branch** to turn green. The Pi checks the successful
+`deploy` branch every five minutes and deploys new builds automatically.
+Manual deployment remains available with:
 
 ```bash
 sudo /opt/pi-flashcards/app/deploy.sh
+```
+
+The first deployment containing the timer must be run manually once. Inspect
+the automation with:
+
+```bash
+systemctl list-timers pi-flashcards-update.timer
+sudo journalctl -u pi-flashcards-update.service -n 50 --no-pager
 ```

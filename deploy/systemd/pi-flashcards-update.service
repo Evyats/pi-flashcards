@@ -1,0 +1,10 @@
+[Unit]
+Description=Deploy a new ready-to-run Pi Flashcards build
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/pi-flashcards/app/deploy/update/check-update.sh
+Nice=10
+TimeoutStartSec=15min

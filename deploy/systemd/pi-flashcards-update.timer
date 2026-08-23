@@ -1,0 +1,11 @@
+[Unit]
+Description=Check GitHub for a ready Pi Flashcards deployment
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+RandomizedDelaySec=30s
+Unit=pi-flashcards-update.service
+
+[Install]
+WantedBy=timers.target
