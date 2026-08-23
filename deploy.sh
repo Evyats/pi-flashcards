@@ -7,10 +7,18 @@ readonly backend="${repository}/backend"
 readonly venv="/opt/pi-flashcards/venv"
 readonly frontend_build="${repository}/frontend/dist"
 readonly web_root="/var/www/pi-server/flashcards"
+readonly deployment_marker="/var/lib/pi-flashcards/last-deployed-sha"
+readonly deployment_lock="/run/lock/pi-flashcards-deploy.lock"
 
 if (( EUID != 0 )); then
     echo "Run this script with sudo." >&2
     exit 1
+fi
+
+exec 9>"$deployment_lock"
+if ! flock --nonblock 9; then
+    echo "Another Pi Flashcards deployment is already running; skipping." >&2
+    exit 0
 fi
 
 for directory in "$repository" "$backend" "$venv"; do
@@ -48,15 +56,23 @@ echo "Refreshing service configuration..."
 install -m 644 "${repository}/deploy/systemd/pi-flashcards.service" /etc/systemd/system/
 install -m 644 "${repository}/deploy/systemd/pi-flashcards-backup.service" /etc/systemd/system/
 install -m 644 "${repository}/deploy/systemd/pi-flashcards-backup.timer" /etc/systemd/system/
+install -m 644 "${repository}/deploy/systemd/pi-flashcards-update.service" /etc/systemd/system/
+install -m 644 "${repository}/deploy/systemd/pi-flashcards-update.timer" /etc/systemd/system/
 
 systemctl daemon-reload
 systemctl enable --now pi-flashcards
 systemctl enable --now pi-flashcards-backup.timer
+systemctl enable --now pi-flashcards-update.timer
 systemctl restart pi-flashcards
 
 echo "Waiting for the API..."
 for attempt in {1..60}; do
     if curl --fail --silent http://127.0.0.1:8001/flashcards/api/health >/dev/null; then
+        deployed_sha="$(runuser -u "$app_user" -- git -C "$repository" rev-parse HEAD)"
+        marker_temp="${deployment_marker}.tmp"
+        printf '%s\n' "$deployed_sha" >"$marker_temp"
+        chmod 644 "$marker_temp"
+        mv -- "$marker_temp" "$deployment_marker"
         echo "Deployment completed successfully."
         exit 0
     fi
