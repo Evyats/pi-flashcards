@@ -173,8 +173,8 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .bulk-message { margin: 0; color: var(--muted); font-size: 12px; }
 
 .card-list { margin: 0; padding: 0; list-style: none; }
-.card-row { display: grid; grid-template-columns: 38px minmax(0,1fr) 38px; min-height: var(--row-height); align-items: center; border-bottom: 1px solid color-mix(in srgb,var(--ink) 9%,transparent); }
-.card-row:not(:has(.card-delete)):not(:has(.card-form)) { grid-template-columns: 38px minmax(0,1fr); }
+.card-row { display: grid; grid-template-columns: 38px minmax(0,1fr) auto; min-height: var(--row-height); align-items: center; border-bottom: 1px solid color-mix(in srgb,var(--ink) 9%,transparent); }
+.card-row:not(:has(.card-actions)):not(:has(.card-form)) { grid-template-columns: 38px minmax(0,1fr); }
 .card-row:last-child { border-bottom: 0; }
 .card-row > .card-form { grid-column: 1 / -1; width: 100%; }
 .card-number { color: color-mix(in srgb,var(--muted) 72%,transparent); font: 650 10px ui-monospace,SFMono-Regular,Consolas,monospace; }
@@ -182,7 +182,28 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .card-copy strong,.card-copy span { overflow-wrap: anywhere; }
 .card-copy strong { font-size: 14px; }
 .card-copy span { color: var(--muted); font-size: 13px; }
+.card-actions { display: flex; align-items: center; gap: 8px; }
+.card-move { display: inline-grid; width: 36px; height: 36px; padding: 0; place-items: center; border: 0; border-radius: 50%; color: var(--muted); background: transparent; transition: color 150ms ease,background 150ms ease; }
+.card-move:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb,var(--accent) 8%,transparent); }
 .card-delete { opacity: 1; }
+
+.move-card-dialog { width: min(420px,calc(100vw - 28px)); max-height: min(620px,calc(100dvh - 28px)); padding: 0; overflow: hidden; border: 1px solid color-mix(in srgb,var(--ink) 14%,transparent); border-radius: calc(var(--radius) + 5px); color: var(--ink); background: var(--surface); }
+.move-card-dialog::backdrop { background: color-mix(in srgb,#080b11 55%,transparent); backdrop-filter: blur(2px); }
+.move-card-panel { display: grid; max-height: inherit; gap: 16px; padding: 20px; }
+.move-card-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.move-card-panel h2 { margin: 0; font-size: 21px; letter-spacing: -.025em; }
+.move-card-panel header p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+.move-dialog-close { display: grid; width: 40px; height: 40px; flex: 0 0 auto; padding: 0; place-items: center; border: 0; border-radius: var(--radius); color: var(--muted); background: color-mix(in srgb,var(--ink) 5%,transparent); }
+.move-card-preview { margin: 0; padding: 10px 12px; overflow: hidden; border-left: 3px solid var(--accent); color: var(--muted); background: color-mix(in srgb,var(--accent) 6%,transparent); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.move-card-options { display: grid; gap: 8px; overflow-y: auto; }
+.move-card-options > button { display: grid; grid-template-columns: 7px minmax(0,1fr) 20px; min-height: 58px; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid color-mix(in srgb,var(--ink) 10%,transparent); border-radius: var(--radius); color: var(--ink); background: color-mix(in srgb,var(--page-bg) 45%,var(--surface)); text-align: left; }
+.move-card-options > button:hover:not(:disabled) { border-color: color-mix(in srgb,var(--accent) 42%,transparent); background: color-mix(in srgb,var(--accent) 7%,var(--surface)); }
+.move-card-options > button > span:nth-child(2) { display: grid; min-width: 0; gap: 4px; }
+.move-card-options strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.move-card-options small { color: var(--muted); font-size: 11px; }
+.move-card-options svg { color: var(--muted); }
+.move-deck-color { width: 7px; height: 34px; border-radius: 999px; background: var(--move-deck-color); box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--ink) 12%,transparent); }
+.move-card-error { margin: 0; color: #a93945; font-size: 12px; }
 
 .empty { margin: 42px auto; color: var(--muted); text-align: center; }
 .empty h2,.empty h3 { margin: 0 0 7px; color: var(--ink); }

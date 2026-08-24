@@ -26,6 +26,10 @@ export function ExportIcon() {
   return <Icon><path d="M12 21V9m-4 4 4-4 4 4M5 6V3h14v3" /></Icon>
 }
 
+export function MoveIcon() {
+  return <Icon><path d="M4 7h6l2 2h8v10H4Z" /><path d="M9 14h7m-3-3 3 3-3 3" /></Icon>
+}
+
 export function ChevronIcon({ direction }) {
   const path = direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 6 6 6-6 6'
   return <Icon><path d={path} /></Icon>
