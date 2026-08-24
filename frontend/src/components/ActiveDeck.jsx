@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { copyText } from '../clipboard'
 import { BulkCardForm, CardForm } from './CardForms'
 import CardFilters from './CardFilters'
-import { ArrowIcon, ExportIcon, ImportIcon, PlusIcon, TrashIcon } from './Icons'
+import { ArrowIcon, ExportIcon, ImportIcon, MoveIcon, PlusIcon, TrashIcon } from './Icons'
+import MoveCardDialog from './MoveCardDialog'
 
 const NOTICE_DURATION = 2200
 
-export default function ActiveDeck({ selectedGroup, studyReady, studyCards, onPrepareStudy, onStartStudy, studyButtonRef, filter, onFilter, counts, editing, adding, addingBulk, onStartAdd, onStartBulk, onCancelAdd, onCancelBulk, onCreate, onCreateBulk, cards, editingCardId, onEditCard, onCancelEditCard, onUpdateCard, onDeleteCard, listRef }) {
+export default function ActiveDeck({ selectedGroup, groups, studyReady, studyCards, onPrepareStudy, onStartStudy, studyButtonRef, filter, onFilter, counts, editing, adding, addingBulk, onStartAdd, onStartBulk, onCancelAdd, onCancelBulk, onCreate, onCreateBulk, cards, editingCardId, onEditCard, onCancelEditCard, onUpdateCard, onMoveCard, onDeleteCard, listRef }) {
   const [exportStatus, setExportStatus] = useState('')
   const [notice, setNotice] = useState(null)
+  const [movingCard, setMovingCard] = useState(null)
   const noticeIdRef = useRef(0)
   const noticeTimerRef = useRef(null)
 
@@ -104,7 +106,16 @@ export default function ActiveDeck({ selectedGroup, studyReady, studyCards, onPr
                   <>
                     <span className="card-number">{String(cards.length - index).padStart(2, '0')}</span>
                     <button className="card-copy" onClick={editing ? () => onEditCard(card.id) : undefined}><strong>{card.front}</strong><span>{card.back}</span></button>
-                    {editing && <button className="icon-danger card-delete" aria-label="Delete card" onClick={() => onDeleteCard(card.id)}><TrashIcon /></button>}
+                    {editing && <div className="card-actions">
+                      <button
+                        className="card-move"
+                        aria-label={`Move ${card.front} to another deck`}
+                        title={groups.length > 1 ? 'Move to another deck' : 'Create another deck before moving this card'}
+                        disabled={groups.length < 2}
+                        onClick={() => setMovingCard(card)}
+                      ><MoveIcon /></button>
+                      <button className="icon-danger card-delete" aria-label="Delete card" onClick={() => onDeleteCard(card.id)}><TrashIcon /></button>
+                    </div>}
                   </>
                 )}
               </li>
@@ -112,6 +123,14 @@ export default function ActiveDeck({ selectedGroup, studyReady, studyCards, onPr
           </ul>
         )}
       </div>
+      {movingCard && (
+        <MoveCardDialog
+          card={movingCard}
+          groups={groups.filter((group) => group.id !== movingCard.group_id)}
+          onMove={onMoveCard}
+          onClose={() => setMovingCard(null)}
+        />
+      )}
     </section>
   )
 }

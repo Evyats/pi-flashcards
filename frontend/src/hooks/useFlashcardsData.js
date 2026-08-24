@@ -126,6 +126,26 @@ export default function useFlashcardsData() {
       setCards((current) => current.map((item) => item.id === id ? card : item))
       return card
     }),
+    moveCard: (id, targetGroupId) => mutate(async () => {
+      const sourceCard = cards.find((card) => card.id === id)
+      const sourceGroup = groups.find((group) => group.id === sourceCard?.group_id)
+      const targetGroup = groups.find((group) => group.id === targetGroupId)
+      if (!sourceCard || !sourceGroup || !targetGroup || sourceGroup.tab_id !== targetGroup.tab_id || sourceGroup.id === targetGroup.id) {
+        throw new Error('The card can only move to another deck in the same workspace.')
+      }
+      const movedCard = await request(`${API}/cards/${id}`, jsonOptions('PUT', {
+        front: sourceCard.front,
+        back: sourceCard.back,
+        group_id: targetGroupId,
+      }))
+      setCards((current) => current.map((card) => card.id === id ? movedCard : card))
+      setGroups((current) => current.map((group) => {
+        if (group.id === sourceGroup.id) return { ...group, card_count: Math.max(0, group.card_count - 1) }
+        if (group.id === targetGroup.id) return { ...group, card_count: group.card_count + 1 }
+        return group
+      }))
+      return movedCard
+    }),
     deleteCard: (id) => mutate(async () => {
       const deletedCard = cards.find((card) => card.id === id)
       const deletedGroup = groups.find((group) => group.id === deletedCard?.group_id)

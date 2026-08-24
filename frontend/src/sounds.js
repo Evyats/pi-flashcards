@@ -2,6 +2,11 @@ let audioContext
 
 const KNOWN_NOTES = [523, 659, 784]
 const BATCH_COMPLETE_NOTES = [...KNOWN_NOTES, 1047, 1319]
+const VOLUME_MULTIPLIER = 2
+
+function amplified(gain) {
+  return Math.min(gain * VOLUME_MULTIPLIER, 1)
+}
 
 function tone(context, { at = 0, duration = .1, from, to = from, gain = .07, type = 'sine' }) {
   const oscillator = context.createOscillator()
@@ -11,7 +16,7 @@ function tone(context, { at = 0, duration = .1, from, to = from, gain = .07, typ
   oscillator.frequency.setValueAtTime(from, start)
   oscillator.frequency.exponentialRampToValueAtTime(to, start + duration)
   volume.gain.setValueAtTime(.0001, start)
-  volume.gain.exponentialRampToValueAtTime(gain, start + .008)
+  volume.gain.exponentialRampToValueAtTime(amplified(gain), start + .008)
   volume.gain.exponentialRampToValueAtTime(.0001, start + duration)
   oscillator.connect(volume).connect(context.destination)
   oscillator.start(start)
@@ -29,7 +34,7 @@ function noise(context, { duration = .1, gain = .035, frequency = 900 }) {
   filter.type = 'bandpass'
   filter.frequency.value = frequency
   filter.Q.value = .8
-  volume.gain.setValueAtTime(gain, context.currentTime)
+  volume.gain.setValueAtTime(amplified(gain), context.currentTime)
   volume.gain.exponentialRampToValueAtTime(.0001, context.currentTime + duration)
   source.buffer = buffer
   source.connect(filter).connect(volume).connect(context.destination)

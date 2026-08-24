@@ -279,6 +279,8 @@ export default function App() {
     await actions.deleteCard(id)
   }
 
+  const moveCard = (id, targetGroupId) => actions.moveCard(id, targetGroupId)
+
   const reviewCard = (id, known) => actions.reviewCard(id, known)
 
   function chooseCardFilter(filter) {
@@ -346,7 +348,7 @@ export default function App() {
 
             {tabGroups.length > 0 && (selectedGroup || allDecksSelected) && (
               <ActiveDeck
-                selectedGroup={selectedGroup} studyReady={studyModeContext === currentStudyContext}
+                selectedGroup={selectedGroup} groups={tabGroups} studyReady={studyModeContext === currentStudyContext}
                 studyCards={studyCards} onPrepareStudy={() => patchUi({ studyModeContext: currentStudyContext })} onStartStudy={startStudying}
                 studyButtonRef={studyButtonRef}
                 filter={cardFilter} onFilter={chooseCardFilter} counts={filterCounts} editing={editingStructure}
@@ -354,7 +356,7 @@ export default function App() {
                 onStartAdd={() => startAddingCards('single')} onStartBulk={() => startAddingCards('bulk')}
                 onCancelAdd={() => patchUi({ addingMode: null })} onCancelBulk={() => patchUi({ addingMode: null })} onCreate={createCard} onCreateBulk={createCardsBulk}
                 cards={visibleCards} editingCardId={editingCardId} onEditCard={(id) => patchUi({ editingCardId: id })} onCancelEditCard={() => patchUi({ editingCardId: null })}
-                onUpdateCard={updateCard} onDeleteCard={deleteCard} listRef={cardListRegionRef}
+                onUpdateCard={updateCard} onMoveCard={moveCard} onDeleteCard={deleteCard} listRef={cardListRegionRef}
               />
             )}
           </>}
