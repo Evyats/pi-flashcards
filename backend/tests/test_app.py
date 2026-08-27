@@ -128,6 +128,37 @@ class FlashcardsTestCase(unittest.TestCase):
         initialize_database()
         self.assertEqual(len(repositories.list_cards()), 1)
 
+    def test_daily_step_migration_removes_variable_round_size(self):
+        self.database.unlink()
+        with closing(sqlite3.connect(self.database)) as connection, connection:
+            connection.execute("CREATE TABLE daily_tasks (id INTEGER PRIMARY KEY)")
+            connection.execute("CREATE TABLE card_groups (id INTEGER PRIMARY KEY)")
+            connection.execute("""CREATE TABLE daily_task_steps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL REFERENCES daily_tasks(id) ON DELETE CASCADE,
+                group_id INTEGER NOT NULL REFERENCES card_groups(id) ON DELETE CASCADE,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                rounds INTEGER NOT NULL,
+                cards_per_round INTEGER NOT NULL,
+                card_subset TEXT NOT NULL,
+                game_type TEXT NOT NULL
+            )""")
+            connection.execute("INSERT INTO daily_tasks (id) VALUES (1)")
+            connection.execute("INSERT INTO card_groups (id) VALUES (2)")
+            connection.execute("""INSERT INTO daily_task_steps
+                (task_id, group_id, rounds, cards_per_round, card_subset, game_type)
+                VALUES (1, 2, 3, 7, 'unknown', 'alternating')""")
+            connection.execute("PRAGMA user_version = 4")
+
+        initialize_database()
+
+        with get_connection() as connection:
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(daily_task_steps)")}
+            step = connection.execute("SELECT * FROM daily_task_steps").fetchone()
+        self.assertNotIn("cards_per_round", columns)
+        self.assertEqual(step["rounds"], 3)
+        self.assertEqual(step["card_subset"], "unknown")
+
 
 if __name__ == "__main__":
     unittest.main()

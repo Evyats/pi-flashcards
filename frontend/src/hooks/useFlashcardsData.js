@@ -6,18 +6,39 @@ export default function useFlashcardsData() {
   const [tabs, setTabs] = useState([])
   const [groups, setGroups] = useState([])
   const [cards, setCards] = useState([])
+  const [dailyTasks, setDailyTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([request(`${API}/tabs`), request(`${API}/groups`), request(`${API}/cards`)])
-      .then(([loadedTabs, loadedGroups, loadedCards]) => {
+    Promise.all([request(`${API}/tabs`), request(`${API}/groups`), request(`${API}/cards`), request(`${API}/daily-tasks`)])
+      .then(([loadedTabs, loadedGroups, loadedCards, loadedDailyTasks]) => {
         setTabs(loadedTabs)
         setGroups(loadedGroups)
         setCards(loadedCards)
+        setDailyTasks(loadedDailyTasks)
       })
       .catch((reason) => setError(reason.message))
       .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    let timer
+    function scheduleReset() {
+      const now = new Date()
+      const tomorrow = new Date(now)
+      tomorrow.setHours(24, 0, 1, 0)
+      timer = window.setTimeout(async () => {
+        try {
+          setDailyTasks(await request(`${API}/daily-tasks`))
+        } catch (reason) {
+          setError(reason.message)
+        }
+        scheduleReset()
+      }, tomorrow.getTime() - now.getTime())
+    }
+    scheduleReset()
+    return () => window.clearTimeout(timer)
   }, [])
 
   async function mutate(operation) {
@@ -54,6 +75,7 @@ export default function useFlashcardsData() {
       setTabs(remainingTabs)
       setGroups((current) => current.filter((group) => group.tab_id !== tab.id))
       setCards((current) => current.filter((card) => !removedGroupIds.has(card.group_id)))
+      setDailyTasks((current) => current.filter((task) => task.tab_id !== tab.id))
       return remainingTabs
     }),
     moveTab: (tabId, direction) => mutate(async () => {
@@ -159,7 +181,48 @@ export default function useFlashcardsData() {
       setCards((current) => current.map((card) => card.id === id ? reviewed : card))
       return reviewed
     }),
+    createDailyTask: (fields) => mutate(async () => {
+      const task = await request(`${API}/daily-tasks`, jsonOptions('POST', fields))
+      setDailyTasks((current) => [...current, task])
+      return task
+    }),
+    updateDailyTask: (id, fields) => mutate(async () => {
+      const task = await request(`${API}/daily-tasks/${id}`, jsonOptions('PUT', fields))
+      setDailyTasks((current) => current.map((item) => item.id === id ? task : item))
+      return task
+    }),
+    completeDailyTask: (id, completed) => mutate(async () => {
+      const task = await request(`${API}/daily-tasks/${id}/completion`, jsonOptions('PUT', { completed }))
+      setDailyTasks((current) => current.map((item) => item.id === id ? task : item))
+      return task
+    }),
+    completeDailyStudy: (id) => mutate(async () => {
+      const task = await request(`${API}/daily-tasks/${id}/complete-study`, { method: 'POST' })
+      setDailyTasks((current) => current.map((item) => item.id === id ? task : item))
+      return task
+    }),
+    deleteDailyTask: (id) => mutate(async () => {
+      await request(`${API}/daily-tasks/${id}`, { method: 'DELETE' })
+      setDailyTasks((current) => current.filter((item) => item.id !== id))
+      return true
+    }),
+    moveDailyTask: (id, direction) => mutate(async () => {
+      const index = dailyTasks.findIndex((task) => task.id === id)
+      const target = index + direction
+      if (index < 0 || target < 0 || target >= dailyTasks.length) return dailyTasks
+      const reordered = [...dailyTasks]
+      const [moved] = reordered.splice(index, 1)
+      reordered.splice(target, 0, moved)
+      setDailyTasks(reordered)
+      try {
+        await request(`${API}/daily-tasks-order`, jsonOptions('PUT', { task_ids: reordered.map((task) => task.id) }))
+      } catch (error) {
+        setDailyTasks(dailyTasks)
+        throw error
+      }
+      return reordered
+    }),
   }
 
-  return { tabs, groups, cards, loading, error, actions }
+  return { tabs, groups, cards, dailyTasks, loading, error, actions }
 }

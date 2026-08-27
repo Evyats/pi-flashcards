@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import ActiveDeck from './components/ActiveDeck'
+import DailyHub from './components/DailyHub'
 import DeckGrid from './components/DeckGrid'
 import { GearIcon, PlusIcon, ThemeIcon } from './components/Icons'
+import ShortcutsDialog from './components/ShortcutsDialog'
 import StudyView from './components/StudyView'
 import WorkspaceTabs from './components/WorkspaceTabs'
 import useFlashcardsData from './hooks/useFlashcardsData'
 import { playSound } from './sounds'
-import { ALL_DECKS, initialUiState, uiReducer } from './state/uiState'
+import { buildDailyStudyRounds } from './dailyStudy'
+import { ALL_DECKS, DAILY_HUB, initialUiState, uiReducer } from './state/uiState'
 
 const DECK_COLORS = ['#ffffff', '#f2c7cf', '#f1c5ad', '#efd69a', '#cde3ad', '#bde0d7', '#acdfe9', '#bfd5f5', '#d6c4eb']
 const DARK_DECK_COLORS = {
@@ -25,10 +28,12 @@ const DARK_DECK_COLORS = {
 export default function App() {
   const cardListRegionRef = useRef(null)
   const studyButtonRef = useRef(null)
-  const { tabs, groups, cards, loading, error, actions } = useFlashcardsData()
+  const { tabs, groups, cards, dailyTasks, loading, error, actions } = useFlashcardsData()
   const [ui, dispatch] = useReducer(uiReducer, initialUiState)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pi-flashcards-theme') === 'dark')
   const [studying, setStudying] = useState(() => window.history.state?.flashcardsScreen === 'study')
+  const [dailyStudy, setDailyStudy] = useState(null)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const {
     selectedTabId, selectedGroupId, editingTabId, editingGroupId, editingStructure,
     colorGroupId, editingCardId, addingMode, studyMode, studyModeContext,
@@ -67,12 +72,6 @@ export default function App() {
   }, [selectedGroupId])
 
   useEffect(() => {
-    if (!loading && selectedTabId === null && tabs.length) {
-      dispatch({ type: 'SELECT_TAB', tabId: tabs[0].id })
-    }
-  }, [loading, selectedTabId, tabs])
-
-  useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
     localStorage.setItem('pi-flashcards-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
@@ -107,12 +106,12 @@ export default function App() {
   }, [colorGroupId])
 
   function switchTab(direction) {
-    if (!tabs.length) return
-    const currentIndex = tabs.findIndex((tab) => tab.id === selectedTabId)
+    const navigationTabs = [{ id: DAILY_HUB }, ...tabs]
+    const currentIndex = navigationTabs.findIndex((tab) => tab.id === selectedTabId)
     if (currentIndex === -1) return
-    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length
+    const nextIndex = (currentIndex + direction + navigationTabs.length) % navigationTabs.length
     playSound('button-tiny-pop')
-    dispatch({ type: 'SELECT_TAB', tabId: tabs[nextIndex].id })
+    dispatch({ type: 'SELECT_TAB', tabId: navigationTabs[nextIndex].id })
   }
 
   function navigateDeckGrid(key) {
@@ -148,6 +147,21 @@ export default function App() {
       return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
     }
     function handleKeyDown(event) {
+      const shortcutHelp = (event.ctrlKey || event.metaKey) && !event.altKey && (event.code === 'Slash' || event.key === '/')
+      if (shortcutHelp) {
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        setShortcutsOpen((current) => !current)
+        return
+      }
+      if (shortcutsOpen) {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          setShortcutsOpen(false)
+        }
+        event.stopImmediatePropagation()
+        return
+      }
       if (studying) return
       if (event.ctrlKey || event.metaKey || event.altKey) return
       if (isTextEntry(event.target)) return
@@ -185,11 +199,15 @@ export default function App() {
         studyButtonRef.current?.click()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
   })
 
   function selectTab(tabId) {
+    if (tabId === DAILY_HUB) {
+      dispatch({ type: 'SELECT_TAB', tabId })
+      return
+    }
     if (tabId === selectedTabId) {
       playSound(allDecksSelected ? 'deck-soft-low' : 'deck-soft')
       dispatch({ type: 'TOGGLE_ALL_DECKS' })
@@ -220,7 +238,7 @@ export default function App() {
   async function deleteTab(tab) {
     if (!window.confirm(`Delete “${tab.name}”, all its groups, and all their cards?`)) return
     const remainingTabs = await actions.deleteTab(tab)
-    if (remainingTabs) dispatch({ type: 'SELECT_TAB', tabId: remainingTabs[0]?.id ?? null })
+    if (remainingTabs) dispatch({ type: 'SELECT_TAB', tabId: remainingTabs[0]?.id ?? DAILY_HUB })
   }
 
   const moveTab = (tabId, direction) => actions.moveTab(tabId, direction)
@@ -295,6 +313,7 @@ export default function App() {
   }
 
   function startStudying(mode) {
+    setDailyStudy(null)
     patchUi({ studyMode: mode })
     window.history.pushState({ ...window.history.state, flashcardsScreen: 'study' }, '')
     setStudying(true)
@@ -302,8 +321,26 @@ export default function App() {
 
   function closeStudying() {
     patchUi({ studyModeContext: null })
+    setDailyStudy(null)
     if (window.history.state?.flashcardsScreen === 'study') window.history.back()
     else setStudying(false)
+  }
+
+  function startDailyStudy(task) {
+    let rounds
+    try {
+      rounds = buildDailyStudyRounds(task, groups, cards)
+    } catch (reason) {
+      window.alert(reason.message)
+      return
+    }
+    if (!rounds.length) {
+      window.alert('No cards currently match this task’s configuration.')
+      return
+    }
+    setDailyStudy({ task, rounds })
+    window.history.pushState({ ...window.history.state, flashcardsScreen: 'study' }, '')
+    setStudying(true)
   }
 
   function playDefaultButtonSound(event) {
@@ -314,7 +351,15 @@ export default function App() {
     if (!hasDedicatedSound) playSound('button-tiny-pop')
   }
 
-  if (studying && selectedTab) return <main className="app" onClickCapture={playDefaultButtonSound}><StudyView cards={studyCards} groupName={studyTitle} mode={studyMode} onClose={closeStudying} onReview={reviewCard} /></main>
+  if (studying && (selectedTab || dailyStudy)) return <main className="app" onClickCapture={playDefaultButtonSound}><StudyView
+    cards={dailyStudy ? [] : studyCards}
+    rounds={dailyStudy?.rounds}
+    groupName={dailyStudy?.task.name ?? studyTitle}
+    mode={studyMode}
+    onClose={closeStudying}
+    onReview={reviewCard}
+    onComplete={dailyStudy ? () => actions.completeDailyStudy(dailyStudy.task.id) : undefined}
+  />{shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}</main>
 
   return (
     <main className="app" onClickCapture={playDefaultButtonSound}>
@@ -328,14 +373,14 @@ export default function App() {
       </header>
       {error && <p className="error" role="alert">{error}</p>}
 
-      {loading ? <p className="empty">Opening your decks…</p> : tabs.length === 0 ? <section className="empty empty-first"><div className="empty-deck" aria-hidden="true"><span /><span /><span /></div><h2>No workspaces yet</h2><p>Enter edit mode to create your first workspace.</p>{editingStructure && <button onClick={createTab}><PlusIcon /> Create your first workspace</button>}</section> : <div className="workspace">
+      {loading ? <p className="empty">Opening your decks…</p> : <div className="workspace">
         <WorkspaceTabs
           tabs={tabs} selectedId={selectedTabId} editingId={editingTabId} editing={editingStructure}
           onSelect={selectTab} onEdit={(id) => patchUi({ editingTabId: id })} onRename={renameTab} onMove={moveTab}
           onDelete={deleteTab} onCreate={createTab} onCancelEdit={() => patchUi({ editingTabId: null })}
         />
         <section className={`workspace-content ${allDecksSelected ? 'all-decks-selected' : ''}`}>
-          {tabGroups.length === 0 && !editingStructure ? <section className="empty"><h3>This workspace is empty</h3><p>Enter edit mode to create a deck.</p></section> : <>
+          {selectedTabId === DAILY_HUB ? <DailyHub tasks={dailyTasks} tabs={tabs} groups={groups} editing={editingStructure} actions={actions} onStartStudy={startDailyStudy} /> : tabs.length === 0 ? <section className="empty empty-first"><div className="empty-deck" aria-hidden="true"><span /><span /><span /></div><h2>No workspaces yet</h2><p>Enter edit mode to create your first workspace.</p>{editingStructure && <button onClick={createTab}><PlusIcon /> Create your first workspace</button>}</section> : tabGroups.length === 0 && !editingStructure ? <section className="empty"><h3>This workspace is empty</h3><p>Enter edit mode to create a deck.</p></section> : <>
             <DeckGrid
               groups={tabGroups} selectedId={selectedGroupId} editingId={editingGroupId} editing={editingStructure}
               knownCardsByGroup={knownCardsByGroup}
@@ -363,6 +408,7 @@ export default function App() {
         </section>
       </div>}
       <div className="bottom-space" style={{ height: `${44 + reservedBottomSpace}px` }} aria-hidden="true" />
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
     </main>
   )
 }

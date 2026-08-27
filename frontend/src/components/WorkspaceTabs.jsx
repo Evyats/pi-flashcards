@@ -1,4 +1,5 @@
 import { ChevronIcon, PlusIcon, TrashIcon } from './Icons'
+import { DAILY_HUB } from '../state/uiState'
 
 export default function WorkspaceTabs({ tabs, selectedId, editingId, editing, onSelect, onEdit, onRename, onMove, onDelete, onCreate, onCancelEdit }) {
   function handleNameKeyDown(event) {
@@ -8,6 +9,11 @@ export default function WorkspaceTabs({ tabs, selectedId, editingId, editing, on
 
   return (
     <nav className="tab-bar" aria-label="Workspaces">
+      <div className={`tab-item daily-tab ${selectedId === DAILY_HUB ? 'active' : ''}`}>
+        <button className="tab-select" onClick={() => onSelect(DAILY_HUB)}>
+          <span>Daily</span>
+        </button>
+      </div>
       {tabs.map((tab, index) => (
         <div className={`tab-item ${tab.id === selectedId ? 'active' : ''}`} key={tab.id}>
           {editingId === tab.id ? (

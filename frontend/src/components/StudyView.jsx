@@ -11,19 +11,46 @@ function shuffled(items) {
   return copy
 }
 
-export default function StudyView({ cards, groupName, mode, onClose, onReview }) {
+export default function StudyView({ cards, rounds, groupName, mode, onClose, onReview, onComplete }) {
   const swipeStart = useRef(null)
   const suppressFlip = useRef(false)
-  const [session] = useState(() => shuffled(cards))
+  const completionSent = useRef(false)
+  const [session] = useState(() => rounds
+    ? rounds.flatMap((round, roundIndex) => round.cards.map((card) => ({ ...card, roundIndex })))
+    : shuffled(cards))
   const [index, setIndex] = useState(0)
   const [batchStart, setBatchStart] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const [exitDirection, setExitDirection] = useState(null)
   const [results, setResults] = useState({ known: 0, missed: 0 })
-  const batchEnd = Math.min(batchStart + 10, session.length)
+  const plannedRound = rounds?.[session[Math.min(batchStart, session.length - 1)]?.roundIndex]
+    ?? rounds?.[rounds.length - 1]
+  const plannedRoundEnd = rounds
+    ? session.findIndex((card, cardIndex) => cardIndex >= batchStart && card.roundIndex !== session[batchStart]?.roundIndex)
+    : -1
+  const batchEnd = rounds
+    ? (plannedRoundEnd === -1 ? session.length : plannedRoundEnd)
+    : Math.min(batchStart + 10, session.length)
   const batchSize = batchEnd - batchStart
   const batchFinished = index >= batchEnd
   const allFinished = index >= session.length
+  const activeMode = plannedRound?.mode ?? mode
+  const activeGroupName = plannedRound?.groupName ?? groupName
+
+  useEffect(() => {
+    if (!allFinished || !onComplete || completionSent.current) return
+    completionSent.current = true
+    onComplete()
+  }, [allFinished, onComplete])
+
+  useEffect(() => {
+    if (!rounds || !batchFinished || allFinished) return undefined
+    const timer = window.setTimeout(() => {
+      setBatchStart(batchEnd)
+      setResults({ known: 0, missed: 0 })
+    }, 650)
+    return () => window.clearTimeout(timer)
+  }, [allFinished, batchEnd, batchFinished, rounds])
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -48,19 +75,21 @@ export default function StudyView({ cards, groupName, mode, onClose, onReview })
   if (batchFinished) {
     return <section className="study study-results">
     <div className="study-progress" role="progressbar" aria-label="Batch progress" aria-valuemin="0" aria-valuemax={batchSize} aria-valuenow={batchSize}><span style={{ width: '100%' }} /></div>
-    <p className="eyebrow">{allFinished ? 'SESSION COMPLETE' : 'BATCH COMPLETE'}</p><h1>{groupName}</h1>
+    <p className="eyebrow">{allFinished ? 'SESSION COMPLETE' : rounds ? 'ROUND COMPLETE' : 'BATCH COMPLETE'}</p><h1>{activeGroupName}</h1>
     <div className="result-counts"><strong>{results.known} knew</strong><strong>{results.missed} missed</strong></div>
     {!allFinished && <p className="result-remaining">{session.length - batchEnd} remaining</p>}
-    {allFinished ? <button onClick={onClose}>Back to cards <ArrowIcon /></button> : <div className="result-actions"><button className="quiet-button" onClick={onClose}>Back to cards</button><button onClick={() => { setBatchStart(batchEnd); setResults({ known: 0, missed: 0 }) }}>Continue <ArrowIcon /></button></div>}
+    {allFinished ? <button onClick={onClose}>{rounds ? 'Back to daily' : 'Back to cards'} <ArrowIcon /></button> : rounds ? <p className="result-remaining">Next round…</p> : <div className="result-actions"><button className="quiet-button" onClick={onClose}>Back to cards</button><button onClick={() => { setBatchStart(batchEnd); setResults({ known: 0, missed: 0 }) }}>Continue <ArrowIcon /></button></div>}
     </section>
   }
 
   const card = session[index]
-  const reversed = mode === 'back' || (mode === 'alternating' && index % 2 === 1)
+  const roundCardIndex = index - batchStart
+  const reversed = activeMode === 'back' || (activeMode === 'alternating' && roundCardIndex % 2 === 1)
   const prompt = reversed ? card.back : card.front
   const answer = reversed ? card.front : card.back
   const nextCard = index + 1 < batchEnd ? session[index + 1] : null
-  const nextReversed = mode === 'back' || (mode === 'alternating' && (index + 1) % 2 === 1)
+  const nextIsSameRound = nextCard?.roundIndex === card.roundIndex || !rounds
+  const nextReversed = activeMode === 'back' || (activeMode === 'alternating' && (roundCardIndex + 1) % 2 === 1)
   const nextPrompt = nextCard ? (nextReversed ? nextCard.back : nextCard.front) : ''
 
   function answerCard(known) {
@@ -101,10 +130,10 @@ export default function StudyView({ cards, groupName, mode, onClose, onReview })
 
   return <section className="study">
     <div className="study-progress" role="progressbar" aria-label="Batch progress" aria-valuemin="0" aria-valuemax={batchSize} aria-valuenow={index - batchStart}><span style={{ width: `${((index - batchStart) / batchSize) * 100}%` }} /></div>
-    <div className="study-header"><span>{index + 1} / {session.length} · {groupName}</span><button className="secondary" onClick={onClose}>Close</button></div>
+    <div className="study-header"><span>{index + 1} / {session.length} · {activeGroupName}{plannedRound ? ` · Round ${plannedRound.round}/${plannedRound.roundCount}` : ''}</span><button className="secondary" onClick={onClose}>Close</button></div>
     <div className={`study-card-stack ${exitDirection ? 'advancing' : ''}`}>
-      {nextCard && <div className="study-card-under" aria-hidden="true"><span className="study-face"><span className="side-label">{nextReversed ? 'BACK' : 'FRONT'}</span><strong>{nextPrompt}</strong></span></div>}
-      <button key={card.id} className={`study-card-scene ${exitDirection ? `exiting-${exitDirection}` : ''}`} aria-label={revealed ? 'Show question' : 'Reveal answer'} onPointerDown={startSwipe} onPointerUp={finishSwipe} onPointerCancel={() => { swipeStart.current = null }} onClick={flipCard}>
+      {nextCard && nextIsSameRound && <div className="study-card-under" aria-hidden="true"><span className="study-face"><span className="side-label">{nextReversed ? 'BACK' : 'FRONT'}</span><strong>{nextPrompt}</strong></span></div>}
+      <button key={`${index}-${card.id}`} className={`study-card-scene ${exitDirection ? `exiting-${exitDirection}` : ''}`} aria-label={revealed ? 'Show question' : 'Reveal answer'} onPointerDown={startSwipe} onPointerUp={finishSwipe} onPointerCancel={() => { swipeStart.current = null }} onClick={flipCard}>
         <span className={`study-card ${revealed ? 'revealed' : ''}`}><span className="study-face study-front"><span className="side-label">{reversed ? 'BACK' : 'FRONT'}</span><strong>{prompt}</strong></span><span className="study-face study-back"><span className="side-label">{reversed ? 'FRONT' : 'BACK'}</span><strong>{answer}</strong></span></span>
       </button>
     </div>
