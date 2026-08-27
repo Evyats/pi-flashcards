@@ -61,7 +61,55 @@ def _repair_orphans(connection: sqlite3.Connection) -> None:
         connection.execute("UPDATE cards SET group_id = ? WHERE group_id IS NULL", (group_id,))
 
 
-MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (_schema, _normalize_colors, _repair_orphans)
+def _daily_learning(connection: sqlite3.Connection) -> None:
+    connection.execute("""CREATE TABLE IF NOT EXISTS daily_tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL CHECK(length(trim(name)) > 0),
+        task_type TEXT NOT NULL CHECK(task_type IN ('general', 'study')),
+        tab_id INTEGER REFERENCES tabs(id) ON DELETE CASCADE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CHECK((task_type = 'general' AND tab_id IS NULL) OR (task_type = 'study' AND tab_id IS NOT NULL))
+    )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS daily_task_steps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL REFERENCES daily_tasks(id) ON DELETE CASCADE,
+        group_id INTEGER NOT NULL REFERENCES card_groups(id) ON DELETE CASCADE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        rounds INTEGER NOT NULL CHECK(rounds BETWEEN 1 AND 20),
+        card_subset TEXT NOT NULL CHECK(card_subset IN ('all', 'known', 'unknown')),
+        game_type TEXT NOT NULL CHECK(game_type IN ('alternating', 'front', 'back'))
+    )""")
+    connection.execute("""CREATE TABLE IF NOT EXISTS daily_task_completions (
+        task_id INTEGER NOT NULL REFERENCES daily_tasks(id) ON DELETE CASCADE,
+        completed_on TEXT NOT NULL,
+        PRIMARY KEY (task_id, completed_on)
+    )""")
+
+
+def _fixed_daily_round_size(connection: sqlite3.Connection) -> None:
+    if "cards_per_round" not in _columns(connection, "daily_task_steps"):
+        return
+    connection.execute("""CREATE TABLE daily_task_steps_fixed (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL REFERENCES daily_tasks(id) ON DELETE CASCADE,
+        group_id INTEGER NOT NULL REFERENCES card_groups(id) ON DELETE CASCADE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        rounds INTEGER NOT NULL CHECK(rounds BETWEEN 1 AND 20),
+        card_subset TEXT NOT NULL CHECK(card_subset IN ('all', 'known', 'unknown')),
+        game_type TEXT NOT NULL CHECK(game_type IN ('alternating', 'front', 'back'))
+    )""")
+    connection.execute("""INSERT INTO daily_task_steps_fixed
+        (id, task_id, group_id, sort_order, rounds, card_subset, game_type)
+        SELECT id, task_id, group_id, sort_order, rounds, card_subset, game_type
+        FROM daily_task_steps""")
+    connection.execute("DROP TABLE daily_task_steps")
+    connection.execute("ALTER TABLE daily_task_steps_fixed RENAME TO daily_task_steps")
+
+
+MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
+    _schema, _normalize_colors, _repair_orphans, _daily_learning, _fixed_daily_round_size,
+)
 
 
 def run_migrations(connection: sqlite3.Connection) -> None:

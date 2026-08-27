@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from .database import initialize_database
 from .errors import ConflictError, InvalidOrderError, NotFoundError
-from .routers import cards, groups, tabs
+from .routers import cards, daily_tasks, groups, tabs
 
 
 API_PREFIX = "/flashcards/api"
@@ -47,3 +47,4 @@ def health() -> dict[str, str]:
 app.include_router(tabs.router, prefix=API_PREFIX)
 app.include_router(groups.router, prefix=API_PREFIX)
 app.include_router(cards.router, prefix=API_PREFIX)
+app.include_router(daily_tasks.router, prefix=API_PREFIX)

@@ -75,5 +75,9 @@ def reorder_groups(tab_id: int, group_ids: list[int]) -> None:
 
 def delete_group(group_id: int) -> None:
     with get_connection() as connection:
+        if connection.execute(
+            "SELECT 1 FROM daily_task_steps WHERE group_id = ? LIMIT 1", (group_id,)
+        ).fetchone():
+            raise ConflictError("Deck is used by a daily learning task")
         if connection.execute("DELETE FROM card_groups WHERE id = ?", (group_id,)).rowcount == 0:
             raise NotFoundError("Group not found")

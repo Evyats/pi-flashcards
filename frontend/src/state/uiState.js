@@ -1,7 +1,8 @@
 export const ALL_DECKS = 'all'
+export const DAILY_HUB = 'daily'
 
 export const initialUiState = {
-  selectedTabId: null,
+  selectedTabId: DAILY_HUB,
   selectedGroupId: null,
   editingTabId: null,
   editingGroupId: null,

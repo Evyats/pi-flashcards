@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { ALL_DECKS, initialUiState, uiReducer } from './uiState.js'
+import { ALL_DECKS, DAILY_HUB, initialUiState, uiReducer } from './uiState.js'
+
+test('daily learning is the default fixed destination', () => {
+  assert.equal(initialUiState.selectedTabId, DAILY_HUB)
+})
 
 test('selecting a tab resets deck-specific state', () => {
   const state = { ...initialUiState, selectedGroupId: 4, addingMode: 'single', cardFilter: 'known' }

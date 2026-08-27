@@ -30,8 +30,22 @@ export function MoveIcon() {
   return <Icon><path d="M4 7h6l2 2h8v10H4Z" /><path d="M9 14h7m-3-3 3 3-3 3" /></Icon>
 }
 
+export function PlayIcon() {
+  return <Icon><path d="m9 6 9 6-9 6Z" /></Icon>
+}
+
+export function EditIcon() {
+  return <Icon><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.5 7.5 3 3" /></Icon>
+}
+
 export function ChevronIcon({ direction }) {
-  const path = direction === 'left' ? 'm15 18-6-6 6-6' : 'm9 6 6 6-6 6'
+  const paths = {
+    left: 'm15 18-6-6 6-6',
+    right: 'm9 6 6 6-6 6',
+    up: 'm6 15 6-6 6 6',
+    down: 'm6 9 6 6 6-6',
+  }
+  const path = paths[direction] ?? paths.right
   return <Icon><path d={path} /></Icon>
 }
 

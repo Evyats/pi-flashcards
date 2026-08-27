@@ -1,6 +1,8 @@
 import re
 
-from pydantic import BaseModel, field_validator
+from typing import Literal
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -82,3 +84,42 @@ class TabOrder(BaseModel):
 class GroupOrder(BaseModel):
     tab_id: int
     group_ids: list[int]
+
+
+class DailyTaskStep(BaseModel):
+    group_id: int
+    rounds: int = Field(ge=1, le=20)
+    card_subset: Literal["all", "known", "unknown"]
+    game_type: Literal["alternating", "front", "back"]
+
+
+class DailyTaskFields(NamedFields):
+    task_type: Literal["general", "study"]
+    tab_id: int | None = None
+    steps: list[DailyTaskStep] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_configuration(self):
+        if self.task_type == "general":
+            if self.tab_id is not None or self.steps:
+                raise ValueError("General tasks cannot have a study configuration")
+        elif self.tab_id is None or not self.steps:
+            raise ValueError("Study tasks require a workspace and at least one deck")
+        if len({step.group_id for step in self.steps}) != len(self.steps):
+            raise ValueError("Each deck can appear only once in a study task")
+        return self
+
+
+class DailyTask(DailyTaskFields):
+    id: int
+    sort_order: int
+    created_at: str
+    completed: bool
+
+
+class DailyTaskCompletion(BaseModel):
+    completed: bool
+
+
+class DailyTaskOrder(BaseModel):
+    task_ids: list[int]
