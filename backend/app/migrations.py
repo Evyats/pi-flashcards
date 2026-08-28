@@ -67,6 +67,7 @@ def _daily_learning(connection: sqlite3.Connection) -> None:
         name TEXT NOT NULL CHECK(length(trim(name)) > 0),
         task_type TEXT NOT NULL CHECK(task_type IN ('general', 'study')),
         tab_id INTEGER REFERENCES tabs(id) ON DELETE CASCADE,
+        link TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CHECK((task_type = 'general' AND tab_id IS NULL) OR (task_type = 'study' AND tab_id IS NOT NULL))
@@ -107,8 +108,14 @@ def _fixed_daily_round_size(connection: sqlite3.Connection) -> None:
     connection.execute("ALTER TABLE daily_task_steps_fixed RENAME TO daily_task_steps")
 
 
+def _daily_task_links(connection: sqlite3.Connection) -> None:
+    if "link" not in _columns(connection, "daily_tasks"):
+        connection.execute("ALTER TABLE daily_tasks ADD COLUMN link TEXT")
+
+
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _schema, _normalize_colors, _repair_orphans, _daily_learning, _fixed_daily_round_size,
+    _daily_task_links,
 )
 
 

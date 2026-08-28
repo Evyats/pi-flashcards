@@ -74,9 +74,9 @@ def create_daily_task(payload: DailyTaskFields) -> DailyTask:
     with get_connection() as connection:
         _validate_study_configuration(connection, payload)
         cursor = connection.execute(
-            """INSERT INTO daily_tasks (name, task_type, tab_id, sort_order)
-               VALUES (?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM daily_tasks))""",
-            (payload.name, payload.task_type, payload.tab_id),
+            """INSERT INTO daily_tasks (name, task_type, tab_id, link, sort_order)
+               VALUES (?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM daily_tasks))""",
+            (payload.name, payload.task_type, payload.tab_id, payload.link),
         )
         task_id = cursor.lastrowid
         _replace_steps(connection, task_id, payload.steps)
@@ -87,8 +87,8 @@ def update_daily_task(task_id: int, payload: DailyTaskFields) -> DailyTask:
     with get_connection() as connection:
         _validate_study_configuration(connection, payload)
         cursor = connection.execute(
-            "UPDATE daily_tasks SET name = ?, task_type = ?, tab_id = ? WHERE id = ?",
-            (payload.name, payload.task_type, payload.tab_id, task_id),
+            "UPDATE daily_tasks SET name = ?, task_type = ?, tab_id = ?, link = ? WHERE id = ?",
+            (payload.name, payload.task_type, payload.tab_id, payload.link, task_id),
         )
         if cursor.rowcount == 0:
             raise NotFoundError("Daily task not found")

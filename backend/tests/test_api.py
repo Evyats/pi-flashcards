@@ -125,9 +125,10 @@ class FlashcardsApiTestCase(unittest.TestCase):
     def test_general_daily_task_can_be_manually_completed(self):
         created = self.client.post(
             f"{API}/daily-tasks",
-            json={"name": "Read", "task_type": "general", "tab_id": None, "steps": []},
+            json={"name": "Read", "task_type": "general", "tab_id": None, "link": "https://example.com/read", "steps": []},
         )
         self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.json()["link"], "https://example.com/read")
         task_id = created.json()["id"]
         self.assertTrue(self.client.put(
             f"{API}/daily-tasks/{task_id}/completion", json={"completed": True}
@@ -135,3 +136,23 @@ class FlashcardsApiTestCase(unittest.TestCase):
 
         self.assertEqual(self.client.delete(f"{API}/daily-tasks/{task_id}").status_code, 204)
         self.assertEqual(self.client.get(f"{API}/daily-tasks").json(), [])
+
+    def test_daily_task_links_accept_only_web_urls_and_only_for_general_tasks(self):
+        invalid = self.client.post(
+            f"{API}/daily-tasks",
+            json={"name": "Bad", "task_type": "general", "link": "javascript:alert(1)", "steps": []},
+        )
+        self.assertEqual(invalid.status_code, 422)
+
+        tab = self.create_tab()
+        group = self.create_group(tab["id"])
+        study_with_link = self.client.post(
+            f"{API}/daily-tasks",
+            json={
+                "name": "Study", "task_type": "study", "tab_id": tab["id"],
+                "link": "https://example.com", "steps": [{
+                    "group_id": group["id"], "rounds": 1, "card_subset": "all", "game_type": "front",
+                }],
+            },
+        )
+        self.assertEqual(study_with_link.status_code, 422)
