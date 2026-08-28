@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckIcon, ChevronIcon, CrossIcon, EditIcon, PlayIcon, PlusIcon, TrashIcon } from './Icons'
+import { CheckIcon, ChevronIcon, CrossIcon, EditIcon, ExternalLinkIcon, PlayIcon, PlusIcon, TrashIcon } from './Icons'
 
 const EMPTY_FORM = {
   name: '',
   task_type: 'general',
   tab_id: '',
+  link: '',
   steps: [],
 }
 
@@ -18,6 +19,7 @@ function DailyTaskDialog({ task, tabs, groups, onClose, onSave }) {
     name: task.name,
     task_type: task.task_type,
     tab_id: task.tab_id ?? '',
+    link: task.link ?? '',
     steps: task.steps.map((step) => ({ ...step })),
   } : EMPTY_FORM)
   const [saving, setSaving] = useState(false)
@@ -71,6 +73,7 @@ function DailyTaskDialog({ task, tabs, groups, onClose, onSave }) {
       name: form.name.trim(),
       task_type: form.task_type,
       tab_id: study ? Number(form.tab_id) : null,
+      link: study ? null : form.link.trim() || null,
       steps: study ? form.steps : [],
     })
     setSaving(false)
@@ -100,6 +103,8 @@ function DailyTaskDialog({ task, tabs, groups, onClose, onSave }) {
             <button type="button" className={form.task_type === 'study' ? 'active' : ''} onClick={() => setForm({ ...form, task_type: 'study' })}>Flashcards</button>
           </div>
         </fieldset>
+
+        {form.task_type === 'general' && <label className="daily-field"><span>Link <small>optional</small></span><input type="url" inputMode="url" maxLength="2048" value={form.link} onChange={(event) => setForm({ ...form, link: event.target.value })} placeholder="https://example.com" /></label>}
 
         {form.task_type === 'study' && (
           <div className="daily-study-config">
@@ -159,6 +164,7 @@ export default function DailyHub({ tasks, tabs, groups, editing, actions, onStar
         </label>
         <div className="daily-task-copy"><strong>{task.name}</strong>{task.task_type === 'study' && <small>{task.steps.reduce((sum, step) => sum + step.rounds, 0)} rounds · {tabs.find((tab) => tab.id === task.tab_id)?.name ?? 'Missing workspace'}</small>}</div>
         {task.task_type === 'study' && !task.completed && <button className="daily-start" onClick={() => onStartStudy(task)}><PlayIcon /> Start</button>}
+        {task.task_type === 'general' && task.link && <a className="daily-start" href={task.link} target="_blank" rel="noopener noreferrer"><ExternalLinkIcon /> Go</a>}
         {editing && <div className="daily-row-actions"><button aria-label={`Edit ${task.name}`} onClick={() => setEditingTask(task)}><EditIcon /></button><button disabled={index === 0} aria-label={`Move ${task.name} up`} onClick={() => actions.moveDailyTask(task.id, -1)}><ChevronIcon direction="up" /></button><button disabled={index === tasks.length - 1} aria-label={`Move ${task.name} down`} onClick={() => actions.moveDailyTask(task.id, 1)}><ChevronIcon direction="down" /></button><button className="danger" aria-label={`Delete ${task.name}`} onClick={() => removeTask(task)}><TrashIcon /></button></div>}
       </li>)}
     </ol>}

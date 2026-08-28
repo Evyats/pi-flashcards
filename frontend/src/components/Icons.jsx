@@ -6,6 +6,10 @@ export function ArrowIcon() {
   return <Icon><path d="M5 12h14M13 6l6 6-6 6" /></Icon>
 }
 
+export function ExternalLinkIcon() {
+  return <Icon><path d="M14 5h5v5M19 5l-8 8" /><path d="M18 13v6H5V6h6" /></Icon>
+}
+
 export function CheckIcon() {
   return <Icon><path d="m5 12 4 4L19 6" /></Icon>
 }

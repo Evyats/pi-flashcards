@@ -102,7 +102,8 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .daily-task-copy { display: grid; min-width: 0; gap: 4px; }
 .daily-task-copy strong { overflow-wrap: anywhere; font-size: 15px; }
 .daily-task-copy small { color: var(--muted); font-size: 11px; }
-.daily-start { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; padding: 8px 13px; border: 0; border-radius: var(--radius); color: white; background: var(--accent); font-weight: 740; }
+.daily-start { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; padding: 8px 13px; border: 0; border-radius: var(--radius); color: white; background: var(--accent); font-weight: 740; text-decoration:none; }
+.daily-start svg { width:17px; height:17px; }
 .daily-row-actions { display: flex; align-items: center; }
 .daily-row-actions button { display: grid; width: 44px; height: 44px; padding: 0; place-items: center; border: 0; color: var(--muted); background: transparent; }
 .daily-row-actions button:hover:not(:disabled) { color: var(--accent); background: color-mix(in srgb,var(--accent) 7%,transparent); }
@@ -121,6 +122,7 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .dialog-close { display: grid; width: 44px; height: 44px; flex: 0 0 auto; padding: 0; place-items: center; border: 0; border-radius: var(--radius); color: var(--muted); background: color-mix(in srgb,var(--ink) 5%,transparent); }
 .daily-field { display: grid; gap: 7px; }
 .daily-field > span,.daily-type-picker legend,.daily-step-fields span,.daily-deck-options > span { color: var(--muted); font-size: 11px; font-weight: 750; }
+.daily-field > span small { font:inherit; font-weight:500; opacity:.72; }
 .daily-field input,.daily-field select,.daily-step-fields input,.daily-step-fields select { width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid color-mix(in srgb,var(--ink) 13%,transparent); border-radius: var(--radius); color: var(--ink); background: color-mix(in srgb,var(--page-bg) 42%,var(--surface)); }
 .daily-type-picker { display: grid; gap: 7px; margin: 0; padding: 0; border: 0; }
 .daily-type-picker > div { display: flex; flex-wrap: wrap; gap: 7px; }

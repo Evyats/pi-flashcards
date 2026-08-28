@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlsplit
 
 from typing import Literal
 
@@ -96,7 +97,23 @@ class DailyTaskStep(BaseModel):
 class DailyTaskFields(NamedFields):
     task_type: Literal["general", "study"]
     tab_id: int | None = None
+    link: str | None = None
     steps: list[DailyTaskStep] = Field(default_factory=list)
+
+    @field_validator("link", mode="before")
+    @classmethod
+    def validate_link(cls, value):
+        if value is None:
+            return None
+        link = str(value).strip()
+        if not link:
+            return None
+        parsed = urlsplit(link)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Link must be a complete http or https URL")
+        if len(link) > 2048:
+            raise ValueError("Link cannot exceed 2048 characters")
+        return link
 
     @model_validator(mode="after")
     def validate_configuration(self):
@@ -105,6 +122,8 @@ class DailyTaskFields(NamedFields):
                 raise ValueError("General tasks cannot have a study configuration")
         elif self.tab_id is None or not self.steps:
             raise ValueError("Study tasks require a workspace and at least one deck")
+        elif self.link is not None:
+            raise ValueError("Study tasks cannot have a link")
         if len({step.group_id for step in self.steps}) != len(self.steps):
             raise ValueError("Each deck can appear only once in a study task")
         return self
