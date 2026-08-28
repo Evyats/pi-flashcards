@@ -156,3 +156,42 @@ class FlashcardsApiTestCase(unittest.TestCase):
             },
         )
         self.assertEqual(study_with_link.status_code, 422)
+
+    def test_daily_history_keeps_aggregate_snapshots(self):
+        first = self.client.post(
+            f"{API}/daily-tasks",
+            json={"name": "Read", "task_type": "general", "steps": []},
+        ).json()
+        second = self.client.post(
+            f"{API}/daily-tasks",
+            json={"name": "Listen", "task_type": "general", "steps": []},
+        ).json()
+        self.client.put(f"{API}/daily-tasks/{first['id']}/completion", json={"completed": True})
+
+        today = self.client.get(f"{API}/daily-tasks/history").json()[-1]
+        self.assertEqual((today["completed_count"], today["task_count"]), (1, 2))
+
+        with closing(sqlite3.connect(self.database)) as connection, connection:
+            connection.execute(
+                "UPDATE daily_task_history SET completed_on = '2000-01-01' WHERE completed_on = ?",
+                (today["completed_on"],),
+            )
+        self.client.delete(f"{API}/daily-tasks/{second['id']}")
+
+        history = self.client.get(f"{API}/daily-tasks/history").json()
+        self.assertEqual(history[0], {
+            "completed_on": "2000-01-01", "completed_count": 1, "task_count": 2,
+        })
+        self.assertEqual((history[-1]["completed_count"], history[-1]["task_count"]), (1, 1))
+
+        with closing(sqlite3.connect(self.database)) as connection, connection:
+            connection.execute(
+                "INSERT OR IGNORE INTO daily_task_completions (task_id, completed_on) VALUES (?, '1999-01-01')",
+                (first["id"],),
+            )
+        self.client.get(f"{API}/daily-tasks/history")
+        with closing(sqlite3.connect(self.database)) as connection:
+            old_details = connection.execute(
+                "SELECT COUNT(*) FROM daily_task_completions WHERE completed_on = '1999-01-01'"
+            ).fetchone()[0]
+        self.assertEqual(old_details, 0)

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Response, status
 
 from .. import repositories as repository
-from ..schemas import DailyTask, DailyTaskCompletion, DailyTaskFields, DailyTaskOrder
+from ..schemas import DailyHistory, DailyTask, DailyTaskCompletion, DailyTaskFields, DailyTaskOrder
 
 router = APIRouter(prefix="/daily-tasks", tags=["daily learning"])
 
@@ -14,6 +14,11 @@ def list_daily_tasks():
 @router.post("", response_model=DailyTask, status_code=status.HTTP_201_CREATED)
 def create_daily_task(payload: DailyTaskFields):
     return repository.create_daily_task(payload)
+
+
+@router.get("/history", response_model=list[DailyHistory])
+def list_daily_history():
+    return repository.list_daily_history()
 
 
 @router.put("-order", status_code=status.HTTP_204_NO_CONTENT)

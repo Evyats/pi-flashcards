@@ -7,16 +7,18 @@ export default function useFlashcardsData() {
   const [groups, setGroups] = useState([])
   const [cards, setCards] = useState([])
   const [dailyTasks, setDailyTasks] = useState([])
+  const [dailyHistory, setDailyHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    Promise.all([request(`${API}/tabs`), request(`${API}/groups`), request(`${API}/cards`), request(`${API}/daily-tasks`)])
-      .then(([loadedTabs, loadedGroups, loadedCards, loadedDailyTasks]) => {
+    Promise.all([request(`${API}/tabs`), request(`${API}/groups`), request(`${API}/cards`), request(`${API}/daily-tasks`), request(`${API}/daily-tasks/history`)])
+      .then(([loadedTabs, loadedGroups, loadedCards, loadedDailyTasks, loadedDailyHistory]) => {
         setTabs(loadedTabs)
         setGroups(loadedGroups)
         setCards(loadedCards)
         setDailyTasks(loadedDailyTasks)
+        setDailyHistory(loadedDailyHistory)
       })
       .catch((reason) => setError(reason.message))
       .finally(() => setLoading(false))
@@ -30,7 +32,9 @@ export default function useFlashcardsData() {
       tomorrow.setHours(24, 0, 1, 0)
       timer = window.setTimeout(async () => {
         try {
-          setDailyTasks(await request(`${API}/daily-tasks`))
+          const [tasks, history] = await Promise.all([request(`${API}/daily-tasks`), request(`${API}/daily-tasks/history`)])
+          setDailyTasks(tasks)
+          setDailyHistory(history)
         } catch (reason) {
           setError(reason.message)
         }
@@ -50,6 +54,12 @@ export default function useFlashcardsData() {
       setError(reason.message)
       return null
     }
+  }
+
+  async function refreshDailyHistory() {
+    const history = await request(`${API}/daily-tasks/history`)
+    setDailyHistory(history)
+    return history
   }
 
   function adjustCardCounts(groupId, tabId, amount) {
@@ -76,6 +86,7 @@ export default function useFlashcardsData() {
       setGroups((current) => current.filter((group) => group.tab_id !== tab.id))
       setCards((current) => current.filter((card) => !removedGroupIds.has(card.group_id)))
       setDailyTasks((current) => current.filter((task) => task.tab_id !== tab.id))
+      await refreshDailyHistory()
       return remainingTabs
     }),
     moveTab: (tabId, direction) => mutate(async () => {
@@ -184,6 +195,7 @@ export default function useFlashcardsData() {
     createDailyTask: (fields) => mutate(async () => {
       const task = await request(`${API}/daily-tasks`, jsonOptions('POST', fields))
       setDailyTasks((current) => [...current, task])
+      await refreshDailyHistory()
       return task
     }),
     updateDailyTask: (id, fields) => mutate(async () => {
@@ -194,16 +206,19 @@ export default function useFlashcardsData() {
     completeDailyTask: (id, completed) => mutate(async () => {
       const task = await request(`${API}/daily-tasks/${id}/completion`, jsonOptions('PUT', { completed }))
       setDailyTasks((current) => current.map((item) => item.id === id ? task : item))
+      await refreshDailyHistory()
       return task
     }),
     completeDailyStudy: (id) => mutate(async () => {
       const task = await request(`${API}/daily-tasks/${id}/complete-study`, { method: 'POST' })
       setDailyTasks((current) => current.map((item) => item.id === id ? task : item))
+      await refreshDailyHistory()
       return task
     }),
     deleteDailyTask: (id) => mutate(async () => {
       await request(`${API}/daily-tasks/${id}`, { method: 'DELETE' })
       setDailyTasks((current) => current.filter((item) => item.id !== id))
+      await refreshDailyHistory()
       return true
     }),
     moveDailyTask: (id, direction) => mutate(async () => {
@@ -224,5 +239,5 @@ export default function useFlashcardsData() {
     }),
   }
 
-  return { tabs, groups, cards, dailyTasks, loading, error, actions }
+  return { tabs, groups, cards, dailyTasks, dailyHistory, loading, error, actions }
 }

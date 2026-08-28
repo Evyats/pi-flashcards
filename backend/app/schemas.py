@@ -142,3 +142,9 @@ class DailyTaskCompletion(BaseModel):
 
 class DailyTaskOrder(BaseModel):
     task_ids: list[int]
+
+
+class DailyHistory(BaseModel):
+    completed_on: str
+    completed_count: int
+    task_count: int

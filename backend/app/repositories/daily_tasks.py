@@ -1,6 +1,26 @@
 from ..database import get_connection
 from ..errors import ConflictError, InvalidOrderError, NotFoundError
-from ..schemas import DailyTask, DailyTaskFields, DailyTaskStep
+from ..schemas import DailyHistory, DailyTask, DailyTaskFields, DailyTaskStep
+
+
+def _refresh_today_history(connection) -> None:
+    connection.execute(
+        """INSERT INTO daily_task_history (completed_on, completed_count, task_count, updated_at)
+           VALUES (
+               date('now', 'localtime'),
+               (SELECT COUNT(*) FROM daily_task_completions
+                WHERE completed_on = date('now', 'localtime')),
+               (SELECT COUNT(*) FROM daily_tasks),
+               CURRENT_TIMESTAMP
+           )
+           ON CONFLICT(completed_on) DO UPDATE SET
+               completed_count = excluded.completed_count,
+               task_count = excluded.task_count,
+               updated_at = CURRENT_TIMESTAMP"""
+    )
+    connection.execute(
+        "DELETE FROM daily_task_completions WHERE completed_on < date('now', 'localtime')"
+    )
 
 
 def _steps(connection, task_id: int) -> list[DailyTaskStep]:
@@ -44,6 +64,16 @@ def list_daily_tasks() -> list[DailyTask]:
         return [_task(connection, row) for row in rows]
 
 
+def list_daily_history() -> list[DailyHistory]:
+    with get_connection() as connection:
+        _refresh_today_history(connection)
+        rows = connection.execute(
+            """SELECT completed_on, completed_count, task_count
+               FROM daily_task_history ORDER BY completed_on"""
+        ).fetchall()
+        return [DailyHistory(**dict(row)) for row in rows]
+
+
 def _validate_study_configuration(connection, payload: DailyTaskFields) -> None:
     if payload.task_type != "study":
         return
@@ -80,6 +110,7 @@ def create_daily_task(payload: DailyTaskFields) -> DailyTask:
         )
         task_id = cursor.lastrowid
         _replace_steps(connection, task_id, payload.steps)
+        _refresh_today_history(connection)
     return fetch_daily_task(task_id)
 
 
@@ -93,6 +124,7 @@ def update_daily_task(task_id: int, payload: DailyTaskFields) -> DailyTask:
         if cursor.rowcount == 0:
             raise NotFoundError("Daily task not found")
         _replace_steps(connection, task_id, payload.steps)
+        _refresh_today_history(connection)
     return fetch_daily_task(task_id)
 
 
@@ -113,6 +145,7 @@ def set_daily_task_completion(task_id: int, completed: bool, allow_study: bool =
                 "DELETE FROM daily_task_completions WHERE task_id = ? AND completed_on = date('now', 'localtime')",
                 (task_id,),
             )
+        _refresh_today_history(connection)
     return fetch_daily_task(task_id)
 
 
@@ -140,3 +173,4 @@ def delete_daily_task(task_id: int) -> None:
     with get_connection() as connection:
         if connection.execute("DELETE FROM daily_tasks WHERE id = ?", (task_id,)).rowcount == 0:
             raise NotFoundError("Daily task not found")
+        _refresh_today_history(connection)

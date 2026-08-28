@@ -23,6 +23,7 @@ export default function StudyView({ cards, rounds, groupName, mode, onClose, onR
   const [revealed, setRevealed] = useState(false)
   const [exitDirection, setExitDirection] = useState(null)
   const [results, setResults] = useState({ known: 0, missed: 0 })
+  const [roundResults, setRoundResults] = useState(() => rounds?.map(() => ({ known: 0, missed: 0 })) ?? [])
   const plannedRound = rounds?.[session[Math.min(batchStart, session.length - 1)]?.roundIndex]
     ?? rounds?.[rounds.length - 1]
   const plannedRoundEnd = rounds
@@ -36,6 +37,9 @@ export default function StudyView({ cards, rounds, groupName, mode, onClose, onR
   const allFinished = index >= session.length
   const activeMode = plannedRound?.mode ?? mode
   const activeGroupName = plannedRound?.groupName ?? groupName
+  const sessionResults = rounds && allFinished
+    ? roundResults.reduce((total, result) => ({ known: total.known + result.known, missed: total.missed + result.missed }), { known: 0, missed: 0 })
+    : results
 
   useEffect(() => {
     if (!allFinished || !onComplete || completionSent.current) return
@@ -73,10 +77,21 @@ export default function StudyView({ cards, rounds, groupName, mode, onClose, onR
   })
 
   if (batchFinished) {
-    return <section className="study study-results">
+    return <section className={`study study-results ${allFinished && rounds ? 'has-round-breakdown' : ''}`}>
     <div className="study-progress" role="progressbar" aria-label="Batch progress" aria-valuemin="0" aria-valuemax={batchSize} aria-valuenow={batchSize}><span style={{ width: '100%' }} /></div>
-    <p className="eyebrow">{allFinished ? 'SESSION COMPLETE' : rounds ? 'ROUND COMPLETE' : 'BATCH COMPLETE'}</p><h1>{activeGroupName}</h1>
-    <div className="result-counts"><strong>{results.known} knew</strong><strong>{results.missed} missed</strong></div>
+    <p className="eyebrow">{allFinished ? 'SESSION COMPLETE' : rounds ? 'ROUND COMPLETE' : 'BATCH COMPLETE'}</p><h1>{allFinished && rounds ? groupName : activeGroupName}</h1>
+    <div className="result-counts"><strong>{sessionResults.known} knew</strong><strong>{sessionResults.missed} missed</strong></div>
+    {allFinished && rounds && <ol className="round-breakdown" aria-label="Results by round">
+      {rounds.map((round, roundIndex) => {
+        const result = roundResults[roundIndex]
+        const total = result.known + result.missed
+        const accuracy = total ? Math.round((result.known / total) * 100) : 0
+        return <li key={`${round.groupName}-${round.round}-${roundIndex}`}>
+          <div><strong>{round.groupName}</strong><span>Round {round.round} of {round.roundCount} · {total} cards</span></div>
+          <div><strong>{accuracy}%</strong><span>{result.known} knew · {result.missed} missed</span></div>
+        </li>
+      })}
+    </ol>}
     {!allFinished && <p className="result-remaining">{session.length - batchEnd} remaining</p>}
     {allFinished ? <button onClick={onClose}>{rounds ? 'Back to daily' : 'Back to cards'} <ArrowIcon /></button> : rounds ? <p className="result-remaining">Next round…</p> : <div className="result-actions"><button className="quiet-button" onClick={onClose}>Back to cards</button><button onClick={() => { setBatchStart(batchEnd); setResults({ known: 0, missed: 0 }) }}>Continue <ArrowIcon /></button></div>}
     </section>
@@ -99,6 +114,9 @@ export default function StudyView({ cards, rounds, groupName, mode, onClose, onR
     setExitDirection(known ? 'right' : 'left')
     window.setTimeout(() => {
       setResults((current) => ({ known: current.known + (known ? 1 : 0), missed: current.missed + (known ? 0 : 1) }))
+      if (rounds) setRoundResults((current) => current.map((result, roundIndex) => roundIndex === card.roundIndex
+        ? { known: result.known + (known ? 1 : 0), missed: result.missed + (known ? 0 : 1) }
+        : result))
       setIndex((current) => current + 1)
       setRevealed(false)
       setExitDirection(null)
