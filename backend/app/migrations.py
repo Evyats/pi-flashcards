@@ -113,9 +113,18 @@ def _daily_task_links(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE daily_tasks ADD COLUMN link TEXT")
 
 
+def _daily_history(connection: sqlite3.Connection) -> None:
+    connection.execute("""CREATE TABLE IF NOT EXISTS daily_task_history (
+        completed_on TEXT PRIMARY KEY,
+        completed_count INTEGER NOT NULL CHECK(completed_count >= 0),
+        task_count INTEGER NOT NULL CHECK(task_count >= 0 AND completed_count <= task_count),
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )""")
+
+
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _schema, _normalize_colors, _repair_orphans, _daily_learning, _fixed_daily_round_size,
-    _daily_task_links,
+    _daily_task_links, _daily_history,
 )
 
 

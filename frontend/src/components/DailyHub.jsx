@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import DailyHistoryCalendar from './DailyHistoryCalendar'
 import { CheckIcon, ChevronIcon, CrossIcon, EditIcon, ExternalLinkIcon, PlayIcon, PlusIcon, TrashIcon } from './Icons'
 
 const EMPTY_FORM = {
@@ -134,7 +135,7 @@ function DailyTaskDialog({ task, tabs, groups, onClose, onSave }) {
   )
 }
 
-export default function DailyHub({ tasks, tabs, groups, editing, actions, onStartStudy }) {
+export default function DailyHub({ tasks, history, tabs, groups, editing, actions, onStartStudy }) {
   const [editingTask, setEditingTask] = useState(undefined)
   const completed = tasks.filter((task) => task.completed).length
 
@@ -168,6 +169,8 @@ export default function DailyHub({ tasks, tabs, groups, editing, actions, onStar
         {editing && <div className="daily-row-actions"><button aria-label={`Edit ${task.name}`} onClick={() => setEditingTask(task)}><EditIcon /></button><button disabled={index === 0} aria-label={`Move ${task.name} up`} onClick={() => actions.moveDailyTask(task.id, -1)}><ChevronIcon direction="up" /></button><button disabled={index === tasks.length - 1} aria-label={`Move ${task.name} down`} onClick={() => actions.moveDailyTask(task.id, 1)}><ChevronIcon direction="down" /></button><button className="danger" aria-label={`Delete ${task.name}`} onClick={() => removeTask(task)}><TrashIcon /></button></div>}
       </li>)}
     </ol>}
+
+    <DailyHistoryCalendar history={history} />
 
     {editingTask !== undefined && <DailyTaskDialog task={editingTask} tabs={tabs} groups={groups} onClose={() => setEditingTask(undefined)} onSave={saveTask} />}
   </section>

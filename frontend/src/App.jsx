@@ -28,7 +28,7 @@ const DARK_DECK_COLORS = {
 export default function App() {
   const cardListRegionRef = useRef(null)
   const studyButtonRef = useRef(null)
-  const { tabs, groups, cards, dailyTasks, loading, error, actions } = useFlashcardsData()
+  const { tabs, groups, cards, dailyTasks, dailyHistory, loading, error, actions } = useFlashcardsData()
   const [ui, dispatch] = useReducer(uiReducer, initialUiState)
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('pi-flashcards-theme') === 'dark')
   const [studying, setStudying] = useState(() => window.history.state?.flashcardsScreen === 'study')
@@ -380,7 +380,7 @@ export default function App() {
           onDelete={deleteTab} onCreate={createTab} onCancelEdit={() => patchUi({ editingTabId: null })}
         />
         <section className={`workspace-content ${allDecksSelected ? 'all-decks-selected' : ''}`}>
-          {selectedTabId === DAILY_HUB ? <DailyHub tasks={dailyTasks} tabs={tabs} groups={groups} editing={editingStructure} actions={actions} onStartStudy={startDailyStudy} /> : tabs.length === 0 ? <section className="empty empty-first"><div className="empty-deck" aria-hidden="true"><span /><span /><span /></div><h2>No workspaces yet</h2><p>Enter edit mode to create your first workspace.</p>{editingStructure && <button onClick={createTab}><PlusIcon /> Create your first workspace</button>}</section> : tabGroups.length === 0 && !editingStructure ? <section className="empty"><h3>This workspace is empty</h3><p>Enter edit mode to create a deck.</p></section> : <>
+          {selectedTabId === DAILY_HUB ? <DailyHub tasks={dailyTasks} history={dailyHistory} tabs={tabs} groups={groups} editing={editingStructure} actions={actions} onStartStudy={startDailyStudy} /> : tabs.length === 0 ? <section className="empty empty-first"><div className="empty-deck" aria-hidden="true"><span /><span /><span /></div><h2>No workspaces yet</h2><p>Enter edit mode to create your first workspace.</p>{editingStructure && <button onClick={createTab}><PlusIcon /> Create your first workspace</button>}</section> : tabGroups.length === 0 && !editingStructure ? <section className="empty"><h3>This workspace is empty</h3><p>Enter edit mode to create a deck.</p></section> : <>
             <DeckGrid
               groups={tabGroups} selectedId={selectedGroupId} editingId={editingGroupId} editing={editingStructure}
               knownCardsByGroup={knownCardsByGroup}
