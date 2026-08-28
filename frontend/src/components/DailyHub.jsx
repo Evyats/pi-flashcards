@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import DailyHistoryCalendar from './DailyHistoryCalendar'
-import { CheckIcon, ChevronIcon, CrossIcon, EditIcon, ExternalLinkIcon, PlayIcon, PlusIcon, TrashIcon } from './Icons'
+import { CheckIcon, ChevronIcon, CrossIcon, EditIcon, PlayIcon, PlusIcon, TrashIcon } from './Icons'
 
 const EMPTY_FORM = {
   name: '',
@@ -165,7 +165,7 @@ export default function DailyHub({ tasks, history, tabs, groups, editing, action
         </label>
         <div className="daily-task-copy"><strong>{task.name}</strong>{task.task_type === 'study' && <small>{task.steps.reduce((sum, step) => sum + step.rounds, 0)} rounds · {tabs.find((tab) => tab.id === task.tab_id)?.name ?? 'Missing workspace'}</small>}</div>
         {task.task_type === 'study' && !task.completed && <button className="daily-start" onClick={() => onStartStudy(task)}><PlayIcon /> Start</button>}
-        {task.task_type === 'general' && task.link && <a className="daily-start" href={task.link} target="_blank" rel="noopener noreferrer"><ExternalLinkIcon /> Go</a>}
+        {task.task_type === 'general' && task.link && !task.completed && <a className="daily-start" href={task.link} target="_blank" rel="noopener noreferrer"><PlayIcon /> Go</a>}
         {editing && <div className="daily-row-actions"><button aria-label={`Edit ${task.name}`} onClick={() => setEditingTask(task)}><EditIcon /></button><button disabled={index === 0} aria-label={`Move ${task.name} up`} onClick={() => actions.moveDailyTask(task.id, -1)}><ChevronIcon direction="up" /></button><button disabled={index === tasks.length - 1} aria-label={`Move ${task.name} down`} onClick={() => actions.moveDailyTask(task.id, 1)}><ChevronIcon direction="down" /></button><button className="danger" aria-label={`Delete ${task.name}`} onClick={() => removeTask(task)}><TrashIcon /></button></div>}
       </li>)}
     </ol>}
