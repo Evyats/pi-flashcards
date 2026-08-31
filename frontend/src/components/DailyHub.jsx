@@ -113,9 +113,11 @@ function DailyTaskDialog({ task, tabs, groups, onClose, onSave }) {
 
             {form.steps.length > 0 && <ol className="daily-step-list">
               {form.steps.map((step, index) => {
-                const group = groups.find((item) => item.id === step.group_id)
-                return <li key={step.group_id}>
-                  <div className="daily-step-heading"><strong>{group?.name ?? 'Missing deck'}</strong><div><button type="button" disabled={index === 0} aria-label="Move deck up" onClick={() => moveStep(index, -1)}><ChevronIcon direction="up" /></button><button type="button" disabled={index === form.steps.length - 1} aria-label="Move deck down" onClick={() => moveStep(index, 1)}><ChevronIcon direction="down" /></button><button type="button" aria-label="Remove deck" onClick={() => setForm((current) => ({ ...current, steps: current.steps.filter((_, stepIndex) => stepIndex !== index) }))}><TrashIcon /></button></div></div>
+                const isAllDecks = step.group_id === null
+                const group = isAllDecks ? null : groups.find((item) => item.id === step.group_id)
+                const stepName = isAllDecks ? 'All decks' : (group?.name ?? 'Missing deck')
+                return <li key={step.group_id ?? 'all'}>
+                  <div className="daily-step-heading"><strong>{stepName}</strong><div><button type="button" disabled={index === 0} aria-label="Move deck up" onClick={() => moveStep(index, -1)}><ChevronIcon direction="up" /></button><button type="button" disabled={index === form.steps.length - 1} aria-label="Move deck down" onClick={() => moveStep(index, 1)}><ChevronIcon direction="down" /></button><button type="button" aria-label="Remove deck" onClick={() => setForm((current) => ({ ...current, steps: current.steps.filter((_, stepIndex) => stepIndex !== index) }))}><TrashIcon /></button></div></div>
                   <div className="daily-step-fields">
                     <label><span>Maximum rounds</span><input type="number" min="1" max="20" value={step.rounds} onChange={(event) => updateStep(index, { rounds: Number(event.target.value) })} /></label>
                     <label><span>Cards</span><select value={step.card_subset} onChange={(event) => updateStep(index, { card_subset: event.target.value })}><option value="all">All</option><option value="known">Known</option><option value="unknown">Unknown</option></select></label>
@@ -125,7 +127,7 @@ function DailyTaskDialog({ task, tabs, groups, onClose, onSave }) {
               })}
             </ol>}
 
-            {form.tab_id && <div className="daily-deck-options"><span>Add decks</span><div>{tabGroups.filter((group) => !selectedIds.has(group.id)).map((group) => <button type="button" key={group.id} onClick={() => addDeck(group.id)}><PlusIcon /> {group.name}</button>)}</div>{tabGroups.length === 0 && <small>This workspace has no decks.</small>}{tabGroups.length > 0 && tabGroups.every((group) => selectedIds.has(group.id)) && <small>All decks are included.</small>}</div>}
+            {form.tab_id && <div className="daily-deck-options"><span>Add decks</span><div>{tabGroups.length > 0 && !selectedIds.has(null) && <button type="button" onClick={() => addDeck(null)}><PlusIcon /> All decks</button>}{tabGroups.filter((group) => !selectedIds.has(group.id)).map((group) => <button type="button" key={group.id} onClick={() => addDeck(group.id)}><PlusIcon /> {group.name}</button>)}</div>{tabGroups.length === 0 && <small>This workspace has no decks.</small>}{tabGroups.length > 0 && tabGroups.every((group) => selectedIds.has(group.id)) && <small>All decks are included.</small>}</div>}
           </div>
         )}
 

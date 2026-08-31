@@ -122,9 +122,32 @@ def _daily_history(connection: sqlite3.Connection) -> None:
     )""")
 
 
+def _nullable_daily_step_group(connection: sqlite3.Connection) -> None:
+    schema = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'daily_task_steps'"
+    ).fetchone()
+    if schema is None or "group_id INTEGER REFERENCES" in schema[0]:
+        return
+    connection.execute("""CREATE TABLE daily_task_steps_nullable_group (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL REFERENCES daily_tasks(id) ON DELETE CASCADE,
+        group_id INTEGER REFERENCES card_groups(id) ON DELETE CASCADE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        rounds INTEGER NOT NULL CHECK(rounds BETWEEN 1 AND 20),
+        card_subset TEXT NOT NULL CHECK(card_subset IN ('all', 'known', 'unknown')),
+        game_type TEXT NOT NULL CHECK(game_type IN ('alternating', 'front', 'back'))
+    )""")
+    connection.execute("""INSERT INTO daily_task_steps_nullable_group
+        (id, task_id, group_id, sort_order, rounds, card_subset, game_type)
+        SELECT id, task_id, group_id, sort_order, rounds, card_subset, game_type
+        FROM daily_task_steps""")
+    connection.execute("DROP TABLE daily_task_steps")
+    connection.execute("ALTER TABLE daily_task_steps_nullable_group RENAME TO daily_task_steps")
+
+
 MIGRATIONS: tuple[Callable[[sqlite3.Connection], None], ...] = (
     _schema, _normalize_colors, _repair_orphans, _daily_learning, _fixed_daily_round_size,
-    _daily_task_links, _daily_history,
+    _daily_task_links, _daily_history, _nullable_daily_step_group,
 )
 
 
