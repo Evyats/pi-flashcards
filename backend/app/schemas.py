@@ -88,7 +88,7 @@ class GroupOrder(BaseModel):
 
 
 class DailyTaskStep(BaseModel):
-    group_id: int
+    group_id: int | None = None
     rounds: int = Field(ge=1, le=20)
     card_subset: Literal["all", "known", "unknown"]
     game_type: Literal["alternating", "front", "back"]

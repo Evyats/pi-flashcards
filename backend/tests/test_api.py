@@ -122,6 +122,29 @@ class FlashcardsApiTestCase(unittest.TestCase):
         self.assertEqual(self.client.delete(f"{API}/tabs/{tab['id']}").status_code, 204)
         self.assertEqual(self.client.get(f"{API}/daily-tasks").json(), [])
 
+    def test_daily_study_step_can_target_all_decks_in_a_workspace(self):
+        tab = self.create_tab()
+        deck = self.create_group(tab["id"])
+        payload = {
+            "name": "Review everything",
+            "task_type": "study",
+            "tab_id": tab["id"],
+            "steps": [
+                {"group_id": None, "rounds": 1, "card_subset": "all", "game_type": "front"},
+            ],
+        }
+        created = self.client.post(f"{API}/daily-tasks", json=payload)
+        self.assertEqual(created.status_code, 201)
+        task = created.json()
+        self.assertIsNone(task["steps"][0]["group_id"])
+
+        fetched = self.client.get(f"{API}/daily-tasks").json()[0]
+        self.assertIsNone(fetched["steps"][0]["group_id"])
+
+        # Deleting the deck must not be blocked by an "all decks" step, since
+        # that step doesn't reference any specific deck.
+        self.assertEqual(self.client.delete(f"{API}/groups/{deck['id']}").status_code, 204)
+
     def test_general_daily_task_can_be_manually_completed(self):
         created = self.client.post(
             f"{API}/daily-tasks",

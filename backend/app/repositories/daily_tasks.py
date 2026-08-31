@@ -77,7 +77,9 @@ def list_daily_history() -> list[DailyHistory]:
 def _validate_study_configuration(connection, payload: DailyTaskFields) -> None:
     if payload.task_type != "study":
         return
-    group_ids = [step.group_id for step in payload.steps]
+    group_ids = [step.group_id for step in payload.steps if step.group_id is not None]
+    if not group_ids:
+        return
     placeholders = ",".join("?" for _ in group_ids)
     rows = connection.execute(
         f"SELECT id FROM card_groups WHERE tab_id = ? AND id IN ({placeholders})",
